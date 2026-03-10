@@ -1,52 +1,47 @@
-# CPE Log Analyser
+# Clarix - CPE Logs and Telemetry reports Analyser
 
-CPE Log Analyser is an Electron + React desktop app for network engineers to ingest `.tgz` CPE archives, merge component logs chronologically, and inspect both generic logs and structured telemetry reports.
+Clarix is a desktop app for CPE engineers to ingest `.tgz` CPE archives, merge component logs chronologically, and inspect both generic logs and structured telemetry reports.
 
 
 ## Setup
 
-```bash
-npm install
-```
-
-## Dependencies check and installation + DMG build
-
-Below two scripts installs all dependencies and builds the universal `.dmg` for macOS distribution. 
-Needs to be run only once during initial setup.
+'bootstrap-mac.sh' script checks and installs all dependencies and 'build-dmg.sh' builds the universal `.dmg` for macOS distribution. 
 
 ```bash
 ./scripts/bootstrap-mac.sh
 ./scripts/build-dmg.sh
 ```
+Needs to be run only once during initial setup.
 
 ## Running the App
 
 After the build completes, the distributable file will be available at:
 ```
 release/Clarix-<version>-universal.dmg
-```
 
 Open the `.dmg` file and drag **Clarix** to your Applications folder to install it like any standard macOS app.
+```
+ 
+## Contributing
 
-## Development
+Before submitting a contribution, verify your build by running the following checks:
 
+### Development
 ```bash
 npm run dev
 ```
 
-## Run Unit Tests
-
+### Unit Tests
 ```bash
 npm test
 ```
 
-## Build + Package
-
+### Build & Package
 ```bash
 npm run build
 ```
 
-Build output includes renderer assets and Electron bundles, then packages a macOS `.dmg` with product name `CPE Log Analyser`.
+Build output includes renderer assets and Electron bundles, then packages a macOS `.dmg` with product name `Clarix`.
 
 ## Ingestion Pipeline
 
