@@ -9,19 +9,24 @@ CPE Log Analyser is an Electron + React desktop app for network engineers to ing
 npm install
 ```
 
-## Team Bootstrap + DMG Scripts
+## Dependencies check and installation + DMG build
+
+Below two scripts installs all dependencies and builds the universal `.dmg` for macOS distribution. 
+Needs to be run only once during initial setup.
 
 ```bash
 ./scripts/bootstrap-mac.sh
 ./scripts/build-dmg.sh
 ```
 
-Optional flags for build script:
+## Running the App
 
-```bash
-./scripts/build-dmg.sh --bootstrap
-./scripts/build-dmg.sh --skip-lint --skip-test
+After the build completes, the distributable file will be available at:
 ```
+release/Clarix-<version>-universal.dmg
+```
+
+Open the `.dmg` file and drag **Clarix** to your Applications folder to install it like any standard macOS app.
 
 ## Development
 
