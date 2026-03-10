@@ -1,0 +1,84 @@
+# CPE Log Analyser
+
+CPE Log Analyser is an Electron + React desktop app for network engineers to ingest `.tgz` CPE archives, merge component logs chronologically, and inspect both generic logs and structured telemetry reports.
+
+## Tech Stack
+
+- Electron + `electron-vite`
+- React 18 + Zustand
+- Tailwind CSS + Lucide icons
+- `@tanstack/react-table` + `@tanstack/react-virtual`
+- `electron-builder` for macOS packaging
+
+## Setup
+
+```bash
+npm install
+```
+
+## Team Bootstrap + DMG Scripts
+
+```bash
+./scripts/bootstrap-mac.sh
+./scripts/build-dmg.sh
+```
+
+Optional flags for build script:
+
+```bash
+./scripts/build-dmg.sh --bootstrap
+./scripts/build-dmg.sh --skip-lint --skip-test
+```
+
+## Development
+
+```bash
+npm run dev
+```
+
+## Run Unit Tests
+
+```bash
+npm test
+```
+
+## Build + Package
+
+```bash
+npm run build
+```
+
+Build output includes renderer assets and Electron bundles, then packages a macOS `.dmg` with product name `CPE Log Analyser`.
+
+## Ingestion Pipeline
+
+1. Collect archive paths from folder picker, file picker, or drag/drop input.
+2. Discover `.tgz`/`.tar.gz` files (folder scan up to 2 levels deep).
+3. Extract each archive into `os.tmpdir()/cpe-log-analyser/<session-id>/extracted`.
+4. Resolve archive log root (`single-inner-directory` handling).
+5. Sort archives chronologically using filename timestamp (`YYYY-MM-DD-HH-MM-SS`), fallback to mtime.
+6. Merge component files in order with merge markers.
+7. Write merged files to `.../<session-id>/merged` and create component manifest.
+8. Parse `telemetry2_0.txt` into report metadata and flattened fields.
+
+## Project Structure
+
+- `electron/main`:
+  - `index.js` window/bootstrap
+  - `ipc-handlers.js` IPC boundary
+  - `ingestion/*` archive extraction, merge, session management
+  - `readers/*` log chunk reader/search and telemetry parser
+- `electron/preload/index.js` secure `contextBridge` API
+- `src/`:
+  - `shared/` JSDoc types + IPC constants
+  - `store/` Zustand stores
+  - `components/` app shell, ingestion, log viewer, telemetry viewer/table
+  - `hooks/` timezone, log reader, telemetry data access
+  - `pages/` Home, Log Viewer, Telemetry Viewer, Telemetry Table
+
+## Notes
+
+- `nodeIntegration` is disabled.
+- `contextIsolation` is enabled.
+- IPC calls are asynchronous and wrapped with preload-side timeout protection.
+- Main-process ingestion can be superseded/cancelled when a new session starts.
