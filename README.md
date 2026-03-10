@@ -2,13 +2,6 @@
 
 CPE Log Analyser is an Electron + React desktop app for network engineers to ingest `.tgz` CPE archives, merge component logs chronologically, and inspect both generic logs and structured telemetry reports.
 
-## Tech Stack
-
-- Electron + `electron-vite`
-- React 18 + Zustand
-- Tailwind CSS + Lucide icons
-- `@tanstack/react-table` + `@tanstack/react-virtual`
-- `electron-builder` for macOS packaging
 
 ## Setup
 
