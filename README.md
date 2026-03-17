@@ -21,6 +21,13 @@ release/Clarix-<version>-universal.dmg
 
 Open the `.dmg` file and drag **Clarix** to your Applications folder to install it like any standard macOS app.
 ```
+## Updating the app
+
+Run these commands on project terminal to update app with latest changes
+```bash
+git pull origin main
+./scripts/build-dmg.sh
+```
  
 ## Contributing
 
