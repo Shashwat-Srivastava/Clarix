@@ -26,6 +26,7 @@ export default function TelemetryTable({
 }) {
   const [sorting, setSorting] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearchRowIndex, setActiveSearchRowIndex] = useState(0);
   const parentRef = useRef(null);
 
   const filteredRows = useMemo(() => {
@@ -48,6 +49,27 @@ export default function TelemetryTable({
       return Object.keys(row).some((key) => key.toLowerCase().includes(query));
     });
   }, [rows, searchQuery]);
+
+  useEffect(() => {
+    setActiveSearchRowIndex(0);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!filteredRows.length) {
+      setActiveSearchRowIndex(0);
+      return;
+    }
+
+    setActiveSearchRowIndex((previous) => {
+      if (previous < 0) {
+        return 0;
+      }
+      if (previous >= filteredRows.length) {
+        return filteredRows.length - 1;
+      }
+      return previous;
+    });
+  }, [filteredRows.length]);
 
   const columnNames = useMemo(() => {
     const names = new Set(['Timestamp']);
@@ -141,6 +163,18 @@ export default function TelemetryTable({
               aria-label="Search telemetry table"
               className="h-8 w-56 bg-transparent text-xs outline-none"
               onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' || !filteredRows.length) {
+                  return;
+                }
+
+                event.preventDefault();
+                setActiveSearchRowIndex((index) => {
+                  const nextIndex = (index + 1) % filteredRows.length;
+                  rowVirtualizer.scrollToIndex(nextIndex, { align: 'center' });
+                  return nextIndex;
+                });
+              }}
               placeholder="Search table"
               value={searchQuery}
             />
@@ -217,10 +251,13 @@ export default function TelemetryTable({
           >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const row = allRows[virtualRow.index];
+              const isActiveSearchRow = virtualRow.index === activeSearchRowIndex && Boolean(searchQuery.trim());
 
               return (
                 <div
-                  className="group absolute left-0 grid border-b border-[color:var(--border)]/50 hover:bg-[color:var(--bg-hover)]"
+                  className={`group absolute left-0 grid border-b border-[color:var(--border)]/50 hover:bg-[color:var(--bg-hover)] ${
+                    isActiveSearchRow ? 'bg-[color:var(--accent)]/8' : ''
+                  }`}
                   key={row.id}
                   style={{
                     gridTemplateColumns,
@@ -233,7 +270,11 @@ export default function TelemetryTable({
                     <div
                       className={`truncate border-r border-[color:var(--border)]/20 px-3 py-2 ${
                         cellIndex === 0
-                          ? 'sticky left-0 z-10 bg-[color:var(--bg-panel)] group-hover:bg-[color:var(--bg-hover)]'
+                          ? `sticky left-0 z-10 ${
+                              isActiveSearchRow
+                                ? 'bg-[color:var(--accent)]/8 group-hover:bg-[color:var(--accent)]/10'
+                                : 'bg-[color:var(--bg-panel)] group-hover:bg-[color:var(--bg-hover)]'
+                            }`
                           : ''
                       }`}
                       key={cell.id}

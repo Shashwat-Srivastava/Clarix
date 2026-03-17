@@ -170,7 +170,7 @@ export async function parseTelemetryFileFromPath(filePath) {
  * Builds a lightweight telemetry list payload.
  *
  * @param {Array} reports
- * @returns {Array<{index:number,timestamp:string,rawTimestamp:string,sequenceNumber:number,summary:string,totalFields:number,hasError:boolean}>}
+ * @returns {Array<{index:number,timestamp:string,rawTimestamp:string,sequenceNumber:number,summary:string,totalFields:number,hasError:boolean,profileName:string}>}
  */
 export function buildTelemetryManifest(reports) {
   return reports.map((report, index) => ({
@@ -181,5 +181,6 @@ export function buildTelemetryManifest(reports) {
     summary: `${Object.keys(report.flatData || {}).length} fields`,
     totalFields: Object.keys(report.flatData || {}).length,
     hasError: Boolean(report.parseError),
+    profileName: String(report.flatData?.['Profile.Name'] ?? ''),
   }));
 }

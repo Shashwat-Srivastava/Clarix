@@ -261,6 +261,20 @@ function toCsv(rows, preferredColumns) {
 }
 
 /**
+ * Converts JSON-like payloads to formatted text.
+ *
+ * @param {any} payload
+ * @returns {string}
+ */
+function toJsonText(payload) {
+  if (typeof payload === 'string') {
+    return payload;
+  }
+
+  return JSON.stringify(payload ?? null, null, 2);
+}
+
+/**
  * Persists latest known sessions snapshot synchronously.
  */
 export function persistSessionsSnapshotSync() {
@@ -712,6 +726,22 @@ export function registerIpcHandlers() {
     }
 
     await fsp.writeFile(result.filePath, csv, 'utf8');
+    return { cancelled: false, filePath: result.filePath };
+  });
+
+  ipcMain.handle(IPC.EXPORT_JSON, async (_event, payload, fallbackName = 'telemetry-report.json') => {
+    const jsonText = toJsonText(payload);
+
+    const result = await dialog.showSaveDialog({
+      defaultPath: fallbackName,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { cancelled: true };
+    }
+
+    await fsp.writeFile(result.filePath, jsonText, 'utf8');
     return { cancelled: false, filePath: result.filePath };
   });
 

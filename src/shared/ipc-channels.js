@@ -10,6 +10,7 @@ export const IPC = {
   GET_TELEMETRY_REPORT: 'get-telemetry-report',
   GET_TELEMETRY_TABLE: 'get-telemetry-table',
   EXPORT_CSV: 'export-csv',
+  EXPORT_JSON: 'export-json',
   EXPORT_MERGED_LOGS: 'export-merged-logs',
   OPEN_FOLDER: 'open-folder-dialog',
   OPEN_FILE: 'open-file-dialog',

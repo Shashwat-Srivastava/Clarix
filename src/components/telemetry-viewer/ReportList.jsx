@@ -1,4 +1,12 @@
 import { ArrowDownUp, Search } from 'lucide-react';
+import TimezoneSelector from './TimezoneSelector.jsx';
+
+const PROFILE_FILTER_OPTIONS = [
+  { label: 'All', value: 'all' },
+  { label: 'Advance', value: 'advance' },
+  { label: 'Basic', value: 'basic' },
+  { label: 'Adhoc', value: 'adhoc' },
+];
 
 /**
  * Sidebar list of telemetry report entries.
@@ -11,9 +19,14 @@ export default function ReportList({
   onSelect,
   filter,
   onFilterChange,
+  onAdvanceSearch,
+  profileFilter,
+  onProfileFilterChange,
   reverseOrder,
   onToggleOrder,
   formatTimestamp,
+  timezone,
+  onTimezoneChange,
 }) {
   const selectedIndexInView = reports.findIndex((report) => report.index === selectedIndex);
 
@@ -28,9 +41,51 @@ export default function ReportList({
             aria-label="Filter telemetry reports"
             className="h-8 w-full bg-transparent outline-none"
             onChange={(event) => onFilterChange(event.target.value)}
-            placeholder="Filter reports"
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter') {
+                return;
+              }
+
+              event.preventDefault();
+              onAdvanceSearch?.();
+            }}
+            placeholder="Search across reports"
             value={filter}
           />
+        </div>
+
+        <div className="mb-2 border-b border-[color:var(--border)]" />
+
+        <div className="mb-2">
+          <div className="mb-2 text-xs text-[color:var(--text-muted)]">Profile</div>
+          <div className="flex flex-wrap gap-2">
+          {PROFILE_FILTER_OPTIONS.map((option) => {
+            const active = profileFilter === option.value;
+
+            return (
+              <button
+                aria-label={`Filter telemetry reports by ${option.label}`}
+                className={`rounded-md px-2 py-1 text-xs transition-colors ${
+                  active
+                    ? 'bg-[color:var(--accent)] text-white'
+                    : 'border border-[color:var(--border)] hover:bg-[color:var(--bg-hover)]'
+                }`}
+                key={option.value}
+                onClick={() => onProfileFilterChange(option.value)}
+                type="button"
+              >
+                {option.label}
+              </button>
+            );
+          })}
+          </div>
+        </div>
+
+        <div className="mb-2 border-b border-[color:var(--border)]" />
+
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs text-[color:var(--text-muted)]">Select timezone</span>
+          <TimezoneSelector onChange={onTimezoneChange} timezone={timezone} />
         </div>
 
         <button
@@ -71,6 +126,12 @@ export default function ReportList({
         }}
         tabIndex={0}
       >
+        {!reports.length ? (
+          <div className="rounded-lg border border-dashed border-[color:var(--border)] p-3 text-sm text-[color:var(--text-muted)]">
+            No telemetry reports matched the current filters.
+          </div>
+        ) : null}
+
         {reports.map((report) => {
           const active = selectedIndex === report.index;
 

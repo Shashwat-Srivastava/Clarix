@@ -19,6 +19,7 @@ const DEFAULT_VIEW_STATE = {
   componentSort: 'asc',
   wrapLines: false,
   reportFilter: '',
+  profileNameFilter: 'all',
   reverseOrder: false,
 };
 
@@ -125,6 +126,7 @@ function toPersistedSession(session) {
     componentSort: session.componentSort,
     wrapLines: session.wrapLines,
     reportFilter: session.reportFilter,
+    profileNameFilter: session.profileNameFilter,
     reverseOrder: session.reverseOrder,
     lastIngestPaths: Array.isArray(session.lastIngestPaths) ? session.lastIngestPaths : [],
   };
@@ -200,6 +202,7 @@ function normalizeHydratedSession(session) {
     componentSort: session?.componentSort ?? 'asc',
     wrapLines: Boolean(session?.wrapLines),
     reportFilter: session?.reportFilter ?? '',
+    profileNameFilter: session?.profileNameFilter ?? 'all',
     reverseOrder: Boolean(session?.reverseOrder),
   };
 }

@@ -35,6 +35,15 @@ export default function ComponentList({
             aria-label="Filter components"
             className="h-8 w-full bg-transparent outline-none"
             onChange={(event) => onFilterChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' || !filtered.length) {
+                return;
+              }
+
+              event.preventDefault();
+              const nextIndex = selectedIndex < 0 ? 0 : (selectedIndex + 1) % filtered.length;
+              onSelect(filtered[nextIndex].id);
+            }}
             placeholder="Filter components"
             value={filter}
           />

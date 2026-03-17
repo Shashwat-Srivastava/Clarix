@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     invokeWithTimeout(IPC.GET_TELEMETRY_TABLE, [componentId], timeoutMs),
   exportCsv: (payload, filename, timeoutMs) =>
     invokeWithTimeout(IPC.EXPORT_CSV, [payload, filename], timeoutMs),
+  exportJson: (payload, filename, timeoutMs) =>
+    invokeWithTimeout(IPC.EXPORT_JSON, [payload, filename], timeoutMs),
   exportMergedLogs: (timeoutMs) =>
     invokeWithTimeout(IPC.EXPORT_MERGED_LOGS, [], timeoutMs),
   openFolderDialog: (timeoutMs) => invokeWithTimeout(IPC.OPEN_FOLDER, [], timeoutMs),

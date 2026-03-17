@@ -1,5 +1,5 @@
 import { ListFilter, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Column visibility selector popover.
@@ -9,11 +9,43 @@ import { useMemo, useState } from 'react';
 export default function ColumnSelector({ columns, visibleColumns, onChange }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [activeFilteredIndex, setActiveFilteredIndex] = useState(0);
+  const optionRefs = useRef(new Map());
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return columns.filter((column) => column.toLowerCase().includes(needle));
   }, [columns, query]);
+
+  useEffect(() => {
+    setActiveFilteredIndex(0);
+  }, [query, open]);
+
+  useEffect(() => {
+    if (!filtered.length) {
+      setActiveFilteredIndex(0);
+      return;
+    }
+
+    setActiveFilteredIndex((previous) => {
+      if (previous < 0) {
+        return 0;
+      }
+      if (previous >= filtered.length) {
+        return filtered.length - 1;
+      }
+      return previous;
+    });
+  }, [filtered.length]);
+
+  useEffect(() => {
+    const activeColumn = filtered[activeFilteredIndex];
+    if (!activeColumn) {
+      return;
+    }
+
+    optionRefs.current.get(activeColumn)?.scrollIntoView({ block: 'nearest' });
+  }, [activeFilteredIndex, filtered]);
 
   return (
     <div className="relative">
@@ -35,6 +67,14 @@ export default function ColumnSelector({ columns, visibleColumns, onChange }) {
               aria-label="Search columns"
               className="h-7 w-full bg-transparent text-xs outline-none"
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' || !filtered.length) {
+                  return;
+                }
+
+                event.preventDefault();
+                setActiveFilteredIndex((index) => (index + 1) % filtered.length);
+              }}
               placeholder="Search columns"
               value={query}
             />
@@ -73,7 +113,19 @@ export default function ColumnSelector({ columns, visibleColumns, onChange }) {
 
           <div className="max-h-64 space-y-1 overflow-auto">
             {filtered.map((column) => (
-              <label className="flex items-center gap-2 text-xs" key={column}>
+              <label
+                className={`flex items-center gap-2 rounded px-1 py-0.5 text-xs ${
+                  filtered[activeFilteredIndex] === column ? 'bg-[color:var(--bg-hover)]' : ''
+                }`}
+                key={column}
+                ref={(node) => {
+                  if (node) {
+                    optionRefs.current.set(column, node);
+                    return;
+                  }
+                  optionRefs.current.delete(column);
+                }}
+              >
                 <input
                   checked={visibleColumns[column] !== false}
                   onChange={(event) =>

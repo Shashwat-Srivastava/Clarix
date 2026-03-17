@@ -21,6 +21,12 @@ export default function LogSearchBar({
         className="h-7 w-full bg-transparent outline-none"
         id="log-search-input"
         onChange={(event) => onQueryChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            onNext();
+          }
+        }}
         placeholder="Search logs (Cmd+F)"
         value={query}
       />

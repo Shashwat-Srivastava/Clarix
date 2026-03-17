@@ -1,53 +1,28 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
-
-/**
- * Highlights search matches in text.
- *
- * @param {string} text
- * @param {string} query
- * @returns {React.ReactNode}
- */
-function renderHighlighted(text, query) {
-  if (!query?.trim()) {
-    return text;
-  }
-
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parts = text.split(new RegExp(`(${escaped})`, 'ig'));
-
-  return parts.map((part, index) =>
-    part.toLowerCase() === query.toLowerCase() ? (
-      <mark className="rounded bg-yellow-300/60 px-0.5 text-inherit" key={`${part}-${index}`}>
-        {part}
-      </mark>
-    ) : (
-      <span key={`${part}-${index}`}>{part}</span>
-    ),
-  );
-}
+import { renderHighlightedText } from './text-highlighter.jsx';
 
 /**
  * Formats primitive values with color coding.
  *
  * @param {any} value
- * @param {string} query
+ * @param {Array<{query?:string,tone:'global'|'local'}>} highlightQueries
  * @returns {React.ReactNode}
  */
-function renderPrimitive(value, query) {
+function renderPrimitive(value, highlightQueries) {
   if (value == null) {
     return <span className="text-purple-400">null</span>;
   }
 
   if (typeof value === 'string') {
-    return <span className="text-green-400">"{renderHighlighted(value, query)}"</span>;
+    return <span className="text-green-400">"{renderHighlightedText(value, highlightQueries)}"</span>;
   }
 
   if (typeof value === 'number' || typeof value === 'boolean') {
-    return <span className="text-sky-400">{renderHighlighted(String(value), query)}</span>;
+    return <span className="text-sky-400">{renderHighlightedText(String(value), highlightQueries)}</span>;
   }
 
-  return <span>{renderHighlighted(String(value), query)}</span>;
+  return <span>{renderHighlightedText(String(value), highlightQueries)}</span>;
 }
 
 /**
@@ -67,9 +42,12 @@ function isComplex(value) {
  *  value:any,
  *  path?:string,
  *  depth?:number,
- *  searchQuery?:string,
- *  matchedPaths?:Set<string>,
- *  activeMatchPath?:string|null,
+ *  localSearchQuery?:string,
+ *  localMatchedPaths?:Set<string>,
+ *  localActiveMatchPath?:string|null,
+ *  globalSearchQuery?:string,
+ *  globalMatchedPaths?:Set<string>,
+ *  globalActiveMatchPath?:string|null,
  *  registerNodeRef?:(path:string,node:HTMLElement|null)=>void,
  * }} props
  */
@@ -77,51 +55,84 @@ export default function JsonRenderer({
   value,
   path = 'root',
   depth = 0,
-  searchQuery = '',
-  matchedPaths = new Set(),
-  activeMatchPath = null,
+  localSearchQuery = '',
+  localMatchedPaths = new Set(),
+  localActiveMatchPath = null,
+  globalSearchQuery = '',
+  globalMatchedPaths = new Set(),
+  globalActiveMatchPath = null,
   registerNodeRef,
 }) {
   const [collapsedPaths, setCollapsedPaths] = useState({});
 
-  const matchedPathList = useMemo(() => [...matchedPaths], [matchedPaths]);
+  const matchedPathList = useMemo(
+    () => [...new Set([...localMatchedPaths, ...globalMatchedPaths])],
+    [globalMatchedPaths, localMatchedPaths],
+  );
+  const highlightQueries = useMemo(
+    () => [
+      { query: globalSearchQuery, tone: 'global' },
+      { query: localSearchQuery, tone: 'local' },
+    ],
+    [globalSearchQuery, localSearchQuery],
+  );
+  const hasSearchQuery = Boolean(globalSearchQuery.trim() || localSearchQuery.trim());
 
   if (!isComplex(value)) {
-    return <div>{renderPrimitive(value, searchQuery)}</div>;
+    return (
+      <div data-json-path={path} ref={(node) => registerNodeRef?.(path, node)}>
+        {renderPrimitive(value, highlightQueries)}
+      </div>
+    );
   }
 
   if (Array.isArray(value)) {
     return (
-      <div className={`${depth > 0 ? 'ml-4 border-l border-[color:var(--border)] pl-3' : ''} space-y-0.5`}>
+      <div
+        className={`${depth > 0 ? 'ml-4 border-l border-[color:var(--border)] pl-3' : ''} space-y-0.5`}
+        data-json-path={path}
+        ref={(node) => registerNodeRef?.(path, node)}
+      >
         {value.map((item, index) => {
           const itemPath = `${path}[${index}]`;
 
           if (isComplex(item)) {
             return (
               <JsonRenderer
-                activeMatchPath={activeMatchPath}
+                globalActiveMatchPath={globalActiveMatchPath}
                 depth={depth + 1}
+                globalMatchedPaths={globalMatchedPaths}
+                globalSearchQuery={globalSearchQuery}
                 key={itemPath}
-                matchedPaths={matchedPaths}
+                localActiveMatchPath={localActiveMatchPath}
+                localMatchedPaths={localMatchedPaths}
+                localSearchQuery={localSearchQuery}
                 path={itemPath}
                 registerNodeRef={registerNodeRef}
-                searchQuery={searchQuery}
                 value={item}
               />
             );
           }
 
-          const active = activeMatchPath === itemPath;
-          const matched = matchedPaths.has(itemPath);
+          const localActive = localActiveMatchPath === itemPath;
+          const globalActive = globalActiveMatchPath === itemPath;
+          const localMatched = localMatchedPaths.has(itemPath);
+          const globalMatched = globalMatchedPaths.has(itemPath);
 
           return (
             <div
-              className={`py-0.5 ${active ? 'rounded bg-[color:var(--accent)]/20 px-1' : ''} ${matched ? 'bg-yellow-300/15' : ''}`}
+              className={`py-0.5 ${
+                localActive
+                  ? 'rounded bg-[color:var(--accent)]/20 px-1'
+                  : globalActive
+                    ? 'rounded bg-sky-500/15 px-1'
+                    : ''
+              } ${localMatched ? 'bg-yellow-300/15' : globalMatched ? 'bg-sky-300/10' : ''}`}
               data-json-path={itemPath}
               key={itemPath}
               ref={(node) => registerNodeRef?.(itemPath, node)}
             >
-              {renderPrimitive(item, searchQuery)}
+              {renderPrimitive(item, highlightQueries)}
             </div>
           );
         })}
@@ -130,24 +141,36 @@ export default function JsonRenderer({
   }
 
   return (
-    <div className={`${depth > 0 ? 'ml-4 border-l border-[color:var(--border)] pl-3' : ''} space-y-0.5`}>
+    <div
+      className={`${depth > 0 ? 'ml-4 border-l border-[color:var(--border)] pl-3' : ''} space-y-0.5`}
+      data-json-path={path}
+      ref={(node) => registerNodeRef?.(path, node)}
+    >
       {Object.entries(value).map(([key, childValue]) => {
         const childPath = path === 'root' ? key : `${path}.${key}`;
 
         if (!isComplex(childValue)) {
-          const active = activeMatchPath === childPath;
-          const matched = matchedPaths.has(childPath);
+          const localActive = localActiveMatchPath === childPath;
+          const globalActive = globalActiveMatchPath === childPath;
+          const localMatched = localMatchedPaths.has(childPath);
+          const globalMatched = globalMatchedPaths.has(childPath);
 
           return (
             <div
-              className={`py-0.5 ${active ? 'rounded bg-[color:var(--accent)]/20 px-1' : ''} ${matched ? 'bg-yellow-300/15' : ''}`}
+              className={`py-0.5 ${
+                localActive
+                  ? 'rounded bg-[color:var(--accent)]/20 px-1'
+                  : globalActive
+                    ? 'rounded bg-sky-500/15 px-1'
+                    : ''
+              } ${localMatched ? 'bg-yellow-300/15' : globalMatched ? 'bg-sky-300/10' : ''}`}
               data-json-path={childPath}
               key={childPath}
               ref={(node) => registerNodeRef?.(childPath, node)}
             >
-              <span className="text-orange-300">{renderHighlighted(key, searchQuery)}</span>
+              <span className="text-orange-300">{renderHighlightedText(key, highlightQueries)}</span>
               <span className="text-[color:var(--text-muted)]">: </span>
-              {renderPrimitive(childValue, searchQuery)}
+              {renderPrimitive(childValue, highlightQueries)}
             </div>
           );
         }
@@ -159,7 +182,7 @@ export default function JsonRenderer({
             matchPath.startsWith(`${childPath}.`) ||
             matchPath.startsWith(`${childPath}[`),
         );
-        const isCollapsed = searchQuery && containsMatchedDescendant ? false : manuallyCollapsed;
+        const isCollapsed = hasSearchQuery && containsMatchedDescendant ? false : manuallyCollapsed;
 
         return (
           <div key={childPath}>
@@ -175,18 +198,21 @@ export default function JsonRenderer({
               type="button"
             >
               {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-              <span className="text-orange-300">{renderHighlighted(key, searchQuery)}</span>
+              <span className="text-orange-300">{renderHighlightedText(key, highlightQueries)}</span>
               <span className="text-[color:var(--text-muted)]">:</span>
             </button>
 
             {!isCollapsed ? (
               <JsonRenderer
-                activeMatchPath={activeMatchPath}
+                globalActiveMatchPath={globalActiveMatchPath}
                 depth={depth + 1}
-                matchedPaths={matchedPaths}
+                globalMatchedPaths={globalMatchedPaths}
+                globalSearchQuery={globalSearchQuery}
+                localActiveMatchPath={localActiveMatchPath}
+                localMatchedPaths={localMatchedPaths}
+                localSearchQuery={localSearchQuery}
                 path={childPath}
                 registerNodeRef={registerNodeRef}
-                searchQuery={searchQuery}
                 value={childValue}
               />
             ) : null}

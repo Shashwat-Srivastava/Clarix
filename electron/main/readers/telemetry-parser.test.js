@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { flattenTelemetryReport, parseTelemetryFile, stripLogPrefix } from './telemetry-parser.js';
+import {
+  buildTelemetryManifest,
+  flattenTelemetryReport,
+  parseTelemetryFile,
+  stripLogPrefix,
+} from './telemetry-parser.js';
 
 describe('stripLogPrefix', () => {
   it('removes telemetry line prefix', () => {
@@ -54,5 +59,27 @@ describe('parseTelemetryFile', () => {
     expect(reports[0].data).toBeNull();
     expect(reports[0].parseError).toBeTruthy();
     expect(reports[0].rawJson).toContain('{"Report"');
+  });
+});
+
+describe('buildTelemetryManifest', () => {
+  it('includes Profile.Name for viewer-side profile filtering', () => {
+    const reports = [
+      {
+        timestamp: new Date('2026-02-06T00:00:31.000Z'),
+        rawTimestamp: '2026-02-06 00:00:31',
+        sequenceNumber: 1,
+        flatData: {
+          Time: '2026-02-06 00:00:31',
+          'Profile.Name': 'Advance Profile',
+        },
+      },
+    ];
+
+    expect(buildTelemetryManifest(reports)).toEqual([
+      expect.objectContaining({
+        profileName: 'Advance Profile',
+      }),
+    ]);
   });
 });

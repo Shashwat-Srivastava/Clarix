@@ -15,6 +15,11 @@ export function useTelemetry({ session, telemetryComponentId, onSessionPatch }) 
   const sessionId = session?.id;
 
   const requestVersionRef = useRef(0);
+  const reportCacheRef = useRef(reportCache);
+
+  useEffect(() => {
+    reportCacheRef.current = reportCache;
+  }, [reportCache]);
 
   useEffect(() => {
     let active = true;
@@ -74,20 +79,22 @@ export function useTelemetry({ session, telemetryComponentId, onSessionPatch }) 
         return null;
       }
 
-      if (reportCache[index]) {
-        return reportCache[index];
+      if (reportCacheRef.current[index]) {
+        return reportCacheRef.current[index];
       }
 
       const report = await window.electronAPI.getTelemetryReport(telemetryComponentId, index);
+      const nextReportCache = {
+        ...reportCacheRef.current,
+        [index]: report,
+      };
+      reportCacheRef.current = nextReportCache;
       onSessionPatch({
-        reportCache: {
-          ...reportCache,
-          [index]: report,
-        },
+        reportCache: nextReportCache,
       });
       return report;
     },
-    [onSessionPatch, reportCache, sessionId, telemetryComponentId],
+    [onSessionPatch, sessionId, telemetryComponentId],
   );
 
   /**
@@ -117,10 +124,15 @@ export function useTelemetry({ session, telemetryComponentId, onSessionPatch }) 
     return reportCache[selectedReportIndex] ?? null;
   }, [reportCache, selectedReportIndex]);
 
+  const setSelectedReportIndex = useCallback(
+    (index) => onSessionPatch({ selectedTelemetryIndex: index }),
+    [onSessionPatch],
+  );
+
   return {
     reportManifest,
     selectedReportIndex,
-    setSelectedReportIndex: (index) => onSessionPatch({ selectedTelemetryIndex: index }),
+    setSelectedReportIndex,
     selectedReport,
     getReportByIndex,
     ensureAllReportsLoaded,

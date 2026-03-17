@@ -1,63 +1,21 @@
-import { ChevronDown, ChevronUp, Copy, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, Download, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import JsonRenderer from './JsonRenderer.jsx';
-
-/**
- * Returns whether a value is a non-null object or array.
- *
- * @param {any} value
- * @returns {boolean}
- */
-function isComplex(value) {
-  return value != null && typeof value === 'object';
-}
-
-/**
- * Flattens JSON into searchable path entries.
- *
- * @param {any} value
- * @param {string} path
- * @returns {Array<{path:string,text:string}>}
- */
-function collectSearchEntries(value, path = 'root') {
-  const output = [];
-
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => {
-      const itemPath = `${path}[${index}]`;
-      if (isComplex(item)) {
-        output.push(...collectSearchEntries(item, itemPath));
-      } else {
-        output.push({ path: itemPath, text: String(item) });
-      }
-    });
-    return output;
-  }
-
-  if (isComplex(value)) {
-    Object.entries(value).forEach(([key, childValue]) => {
-      const childPath = path === 'root' ? key : `${path}.${key}`;
-      output.push({ path: childPath, text: key });
-
-      if (isComplex(childValue)) {
-        output.push(...collectSearchEntries(childValue, childPath));
-      } else {
-        output.push({ path: childPath, text: `${key}: ${String(childValue)}` });
-      }
-    });
-    return output;
-  }
-
-  output.push({ path, text: String(value) });
-  return output;
-}
+import { findTelemetryMatchPaths } from './search-utils.js';
+import { renderHighlightedText } from './text-highlighter.jsx';
 
 /**
  * Telemetry detail pane for one selected report.
  *
- * @param {{report:any,formattedTimestamp:string}} props
+ * @param {{report:any,formattedTimestamp:string,globalSearchQuery?:string,globalMatchedPaths?:string[],globalActiveMatchPath?:string|null}} props
  */
-export default function TelemetryDetail({ report, formattedTimestamp }) {
+export default function TelemetryDetail({
+  report,
+  formattedTimestamp,
+  globalSearchQuery = '',
+  globalMatchedPaths = [],
+  globalActiveMatchPath = null,
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
 
@@ -77,25 +35,13 @@ export default function TelemetryDetail({ report, formattedTimestamp }) {
   }, [report?.sequenceNumber]);
   const outputData = report?.data ?? report?.rawJson ?? null;
 
-  const searchEntries = useMemo(() => {
-    if (!report?.data) {
-      return [];
-    }
-    return collectSearchEntries(report.data);
-  }, [report?.data]);
-
   const matchedPaths = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) {
+    if (!searchQuery.trim()) {
       return [];
     }
 
-    const matched = searchEntries
-      .filter((entry) => entry.text.toLowerCase().includes(query))
-      .map((entry) => entry.path);
-
-    return [...new Set(matched)];
-  }, [searchEntries, searchQuery]);
+    return findTelemetryMatchPaths(report, searchQuery);
+  }, [report, searchQuery]);
 
   useEffect(() => {
     if (!matchedPaths.length) {
@@ -115,17 +61,27 @@ export default function TelemetryDetail({ report, formattedTimestamp }) {
   }, [matchedPaths]);
 
   const activeMatchPath = matchedPaths.length ? matchedPaths[activeMatchIndex] : null;
+  const scrollTargetPath = activeMatchPath ?? globalActiveMatchPath;
 
   useEffect(() => {
-    if (!activeMatchPath) {
+    if (!scrollTargetPath) {
       return;
     }
 
-    const node = nodeRefs.current.get(activeMatchPath);
+    const node = nodeRefs.current.get(scrollTargetPath);
     node?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [activeMatchPath]);
+  }, [scrollTargetPath]);
 
   const matchedPathSet = useMemo(() => new Set(matchedPaths), [matchedPaths]);
+  const globalMatchedPathSet = useMemo(() => new Set(globalMatchedPaths), [globalMatchedPaths]);
+  const outputJson = useMemo(
+    () => (typeof outputData === 'string' ? outputData : JSON.stringify(outputData ?? null, null, 2)),
+    [outputData],
+  );
+  const downloadFileName = useMemo(() => {
+    const sequence = report?.sequenceNumber ?? 'report';
+    return `telemetry-report-${sequence}.json`;
+  }, [report?.sequenceNumber]);
 
   if (!report) {
     return (
@@ -143,15 +99,26 @@ export default function TelemetryDetail({ report, formattedTimestamp }) {
             <div className="text-xs text-[color:var(--text-muted)]">Report #{report.sequenceNumber}</div>
             <div className="font-semibold">{formattedTimestamp}</div>
           </div>
-          <button
-            aria-label="Copy JSON"
-            className="inline-flex items-center gap-1 rounded-lg border border-[color:var(--border)] px-3 py-1.5 hover:bg-[color:var(--bg-hover)]"
-            onClick={() => navigator.clipboard.writeText(JSON.stringify(outputData, null, 2))}
-            type="button"
-          >
-            <Copy size={14} />
-            Copy JSON
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="Copy JSON"
+              className="inline-flex items-center gap-1 rounded-lg border border-[color:var(--border)] px-3 py-1.5 hover:bg-[color:var(--bg-hover)]"
+              onClick={() => navigator.clipboard.writeText(outputJson)}
+              type="button"
+            >
+              <Copy size={14} />
+              Copy JSON
+            </button>
+            <button
+              aria-label="Download JSON"
+              className="inline-flex items-center gap-1 rounded-lg border border-[color:var(--border)] px-3 py-1.5 hover:bg-[color:var(--bg-hover)]"
+              onClick={() => window.electronAPI.exportJson(outputData, downloadFileName)}
+              type="button"
+            >
+              <Download size={14} />
+              Download JSON
+            </button>
+          </div>
         </div>
 
         {report.data ? (
@@ -161,6 +128,14 @@ export default function TelemetryDetail({ report, formattedTimestamp }) {
               aria-label="Search telemetry JSON"
               className="h-7 w-full bg-transparent outline-none"
               onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' || !matchedPaths.length) {
+                  return;
+                }
+
+                event.preventDefault();
+                setActiveMatchIndex((index) => (index + 1) % matchedPaths.length);
+              }}
               placeholder="Search JSON"
               value={searchQuery}
             />
@@ -205,14 +180,22 @@ export default function TelemetryDetail({ report, formattedTimestamp }) {
         ) : null}
         {report.data ? (
           <JsonRenderer
-            activeMatchPath={activeMatchPath}
-            matchedPaths={matchedPathSet}
+            globalActiveMatchPath={globalActiveMatchPath}
+            globalMatchedPaths={globalMatchedPathSet}
+            globalSearchQuery={globalSearchQuery}
+            localActiveMatchPath={activeMatchPath}
+            localMatchedPaths={matchedPathSet}
+            localSearchQuery={searchQuery}
             registerNodeRef={registerNodeRef}
-            searchQuery={searchQuery}
             value={report.data}
           />
         ) : (
-          <pre>{report.rawJson}</pre>
+          <pre ref={(node) => registerNodeRef('root', node)}>
+            {renderHighlightedText(report.rawJson ?? '', [
+              { query: globalSearchQuery, tone: 'global' },
+              { query: searchQuery, tone: 'local' },
+            ])}
+          </pre>
         )}
       </div>
     </div>
