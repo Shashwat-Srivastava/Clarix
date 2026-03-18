@@ -1,31 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-
-/**
- * Highlights query substrings in a line.
- *
- * @param {string} text
- * @param {string} query
- * @returns {React.ReactNode}
- */
-function renderHighlighted(text, query) {
-  if (!query.trim()) {
-    return text;
-  }
-
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parts = text.split(new RegExp(`(${escaped})`, 'ig'));
-
-  return parts.map((part, index) =>
-    part.toLowerCase() === query.toLowerCase() ? (
-      <mark className="rounded bg-yellow-300/60 px-0.5 text-inherit" key={`${part}-${index}`}>
-        {part}
-      </mark>
-    ) : (
-      <span key={`${part}-${index}`}>{part}</span>
-    ),
-  );
-}
+import { renderHighlightedText } from '../telemetry-viewer/text-highlighter.jsx';
 
 /**
  * Returns line-level class by inferred log severity.
@@ -70,7 +45,11 @@ export default function VirtualLogLines({
   lines,
   wrapLines,
   query,
-  activeMatchLine,
+  globalQuery = '',
+  globalActiveMatchLine = null,
+  globalMatchedLines = [],
+  localActiveMatchLine,
+  localMatchedLines = [],
   onLineClick,
   onReachEnd,
 }) {
@@ -136,21 +115,37 @@ export default function VirtualLogLines({
   }, [lines, updateRowWidth, wrapLines]);
 
   useEffect(() => {
-    if (!activeMatchLine) {
+    const activeLine = localActiveMatchLine ?? globalActiveMatchLine;
+    if (!activeLine) {
       return;
     }
 
-    const index = activeMatchLine - 1;
+    const index = activeLine - 1;
     if (index >= 0 && index < lines.length) {
       rowVirtualizer.scrollToIndex(index, { align: 'center' });
     }
-  }, [activeMatchLine, lines.length, rowVirtualizer]);
+  }, [globalActiveMatchLine, lines.length, localActiveMatchLine, rowVirtualizer]);
 
   const items = rowVirtualizer.getVirtualItems();
 
   const lineClassCache = useMemo(
     () => lines.map((line) => getLevelClass(line)),
     [lines],
+  );
+  const globalMatchedLineSet = useMemo(
+    () => new Set(globalMatchedLines),
+    [globalMatchedLines],
+  );
+  const localMatchedLineSet = useMemo(
+    () => new Set(localMatchedLines),
+    [localMatchedLines],
+  );
+  const highlightQueries = useMemo(
+    () => [
+      { query: globalQuery, tone: 'global' },
+      { query, tone: 'local' },
+    ],
+    [globalQuery, query],
   );
 
   return (
@@ -165,12 +160,23 @@ export default function VirtualLogLines({
         {items.map((virtualRow) => {
           const lineNumber = virtualRow.index + 1;
           const line = lines[virtualRow.index] ?? '';
-          const active = activeMatchLine === lineNumber;
+          const localActive = localActiveMatchLine === lineNumber;
+          const globalActive = globalActiveMatchLine === lineNumber;
+          const localMatched = localMatchedLineSet.has(lineNumber);
+          const globalMatched = globalMatchedLineSet.has(lineNumber);
 
           return (
             <div
               className={`absolute left-0 right-0 flex gap-3 border-b border-[color:var(--border)]/40 px-3 text-left ${
-                active ? 'bg-[color:var(--accent)]/20' : ''
+                localActive
+                  ? 'bg-[color:var(--accent)]/20'
+                  : globalActive
+                    ? 'bg-sky-500/15'
+                    : localMatched
+                      ? 'bg-yellow-300/8'
+                      : globalMatched
+                        ? 'bg-sky-300/8'
+                        : ''
               }`}
               data-index={virtualRow.index}
               key={virtualRow.key}
@@ -192,7 +198,7 @@ export default function VirtualLogLines({
                   wordBreak: wrapLines ? 'break-word' : 'normal',
                 }}
               >
-                {renderHighlighted(line, query)}
+                {renderHighlightedText(line, highlightQueries)}
               </span>
             </div>
           );

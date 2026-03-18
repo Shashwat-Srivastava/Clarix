@@ -44,7 +44,7 @@ export default function DropZone({ onSelectFolder, onSelectFiles, onDropPaths })
 
         <h1 className="mb-2 text-2xl font-semibold tracking-tight">Load CPE Archives</h1>
         <p className="mx-auto mb-8 max-w-2xl text-[color:var(--text-muted)]">
-          Drag and drop <code>.tgz</code> archives or choose a folder to merge logs chronologically.
+          Drag and drop <code>.tgz</code> archives, a <code>.zip</code> bundle of <code>.tgz</code> files, or choose a folder to merge logs chronologically.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3">

@@ -7,8 +7,8 @@ import { app, ipcMain, dialog } from 'electron';
 import log from 'electron-log';
 import { IPC } from '../../src/shared/ipc-channels.js';
 import {
-  collectArchivePaths,
   extractArchive,
+  resolveInputArchivePaths,
   sortArchivesChronologically,
 } from './ingestion/extract.js';
 import { mergeAllComponents } from './ingestion/merge.js';
@@ -311,7 +311,7 @@ export function registerIpcHandlers() {
   ipcMain.handle(IPC.OPEN_FILE, async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: 'Archives', extensions: ['tgz', 'tar.gz'] }],
+      filters: [{ name: 'Archives', extensions: ['tgz', 'tar.gz', 'zip'] }],
     });
 
     if (result.canceled || !result.filePaths.length) {
@@ -457,20 +457,20 @@ export function registerIpcHandlers() {
     });
 
     try {
-      const archivePaths = await collectArchivePaths(paths);
+      const session = await prepareSessionWorkspace(sessionId);
+      const archivePaths = await resolveInputArchivePaths(paths, session.inputRoot);
 
       if (!archivePaths.length) {
         const errorPayload = {
           sessionId,
           message: 'No .tgz files found in selected paths.',
-          detail: 'Select .tgz files directly or a folder containing .tgz archives.',
+          detail: 'Select .tgz files directly, a folder containing .tgz archives, or a .zip bundle of .tgz files.',
         };
 
         event.sender.send(IPC.INGESTION_ERROR, errorPayload);
         throw new Error(errorPayload.message);
       }
 
-      const session = await prepareSessionWorkspace(sessionId);
       updateSession(sessionId, { archiveCount: archivePaths.length, warnings: [] });
 
       const extractedArchives = [];

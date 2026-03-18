@@ -1,5 +1,4 @@
 import { ArrowDownAZ, ArrowUpAZ, FileText, Search } from 'lucide-react';
-import { useMemo } from 'react';
 
 /**
  * Sidebar list for merged component logs.
@@ -10,21 +9,15 @@ export default function ComponentList({
   components,
   selectedComponentId,
   onSelect,
+  globalFilter,
+  onGlobalFilterChange,
+  onAdvanceGlobalSearch,
   filter,
   onFilterChange,
   sort,
   onToggleSort,
 }) {
-  const filtered = useMemo(() => {
-    const query = filter.trim().toLowerCase();
-    const items = components.filter((component) => component.name.toLowerCase().includes(query));
-    items.sort((a, b) =>
-      sort === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
-    );
-    return items;
-  }, [components, filter, sort]);
-
-  const selectedIndex = filtered.findIndex((component) => component.id === selectedComponentId);
+  const selectedIndex = components.findIndex((component) => component.id === selectedComponentId);
 
   return (
     <div className="flex h-full flex-col">
@@ -32,17 +25,36 @@ export default function ComponentList({
         <div className="mb-2 flex items-center gap-2 rounded-lg border border-[color:var(--border)] px-2">
           <Search size={14} className="text-[color:var(--text-muted)]" />
           <input
-            aria-label="Filter components"
+            aria-label="Search across log files"
             className="h-8 w-full bg-transparent outline-none"
-            onChange={(event) => onFilterChange(event.target.value)}
+            onChange={(event) => onGlobalFilterChange(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key !== 'Enter' || !filtered.length) {
+              if (event.key !== 'Enter') {
                 return;
               }
 
               event.preventDefault();
-              const nextIndex = selectedIndex < 0 ? 0 : (selectedIndex + 1) % filtered.length;
-              onSelect(filtered[nextIndex].id);
+              onAdvanceGlobalSearch?.();
+            }}
+            placeholder="Search across logs"
+            value={globalFilter}
+          />
+        </div>
+
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-[color:var(--border)] px-2">
+          <Search size={14} className="text-[color:var(--text-muted)]" />
+          <input
+            aria-label="Filter components"
+            className="h-8 w-full bg-transparent outline-none"
+            onChange={(event) => onFilterChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' || !components.length) {
+                return;
+              }
+
+              event.preventDefault();
+              const nextIndex = selectedIndex < 0 ? 0 : (selectedIndex + 1) % components.length;
+              onSelect(components[nextIndex].id);
             }}
             placeholder="Filter components"
             value={filter}
@@ -63,31 +75,37 @@ export default function ComponentList({
       <div
         className="flex-1 overflow-auto p-2"
         onKeyDown={(event) => {
-          if (!filtered.length) {
+          if (!components.length) {
             return;
           }
 
           if (event.key === 'ArrowDown') {
             event.preventDefault();
-            const nextIndex = selectedIndex < 0 ? 0 : Math.min(filtered.length - 1, selectedIndex + 1);
-            onSelect(filtered[nextIndex].id);
+            const nextIndex = selectedIndex < 0 ? 0 : Math.min(components.length - 1, selectedIndex + 1);
+            onSelect(components[nextIndex].id);
           }
 
           if (event.key === 'ArrowUp') {
             event.preventDefault();
-            const nextIndex = selectedIndex < 0 ? filtered.length - 1 : Math.max(0, selectedIndex - 1);
-            onSelect(filtered[nextIndex].id);
+            const nextIndex = selectedIndex < 0 ? components.length - 1 : Math.max(0, selectedIndex - 1);
+            onSelect(components[nextIndex].id);
           }
 
           if (event.key === 'Enter' && selectedIndex >= 0) {
             event.preventDefault();
-            onSelect(filtered[selectedIndex].id);
+            onSelect(components[selectedIndex].id);
           }
         }}
         role="listbox"
         tabIndex={0}
       >
-        {filtered.map((component) => {
+        {!components.length ? (
+          <div className="rounded-lg border border-dashed border-[color:var(--border)] p-3 text-sm text-[color:var(--text-muted)]">
+            No log files matched the current filters.
+          </div>
+        ) : null}
+
+        {components.map((component) => {
           const active = component.id === selectedComponentId;
 
           return (

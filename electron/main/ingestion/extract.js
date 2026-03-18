@@ -1,9 +1,12 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import * as tar from 'tar';
 
 const TIMESTAMP_REGEX = /(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})/;
+const execFileAsync = promisify(execFile);
 
 /**
  * Resolves the directory where component log files are stored after extraction.
@@ -31,6 +34,16 @@ export function resolveLogPath(extractedTgzDir) {
 export function isArchiveFile(filePath) {
   const lower = filePath.toLowerCase();
   return lower.endsWith('.tgz') || lower.endsWith('.tar.gz');
+}
+
+/**
+ * Returns true when a path looks like a supported zip bundle input.
+ *
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+export function isZipFile(filePath) {
+  return filePath.toLowerCase().endsWith('.zip');
 }
 
 /**
@@ -105,6 +118,70 @@ export async function collectArchivePaths(inputPaths) {
       const discovered = await scanDirForArchives(inputPath, 2);
       for (const filePath of discovered) {
         unique.add(path.resolve(filePath));
+      }
+    }
+  }
+
+  return [...unique];
+}
+
+/**
+ * Expands one zip file into a dedicated staging directory.
+ *
+ * @param {string} zipPath
+ * @param {string} inputRoot
+ * @returns {Promise<string>}
+ */
+export async function expandZipArchive(zipPath, inputRoot) {
+  await fsp.mkdir(inputRoot, { recursive: true });
+
+  const baseName = path.basename(zipPath, '.zip').replace(/[^a-zA-Z0-9._-]+/g, '-');
+  const extractionDir = await fsp.mkdtemp(path.join(inputRoot, `${baseName || 'bundle'}-`));
+
+  await execFileAsync('/usr/bin/unzip', ['-q', '-o', zipPath, '-d', extractionDir]);
+  return extractionDir;
+}
+
+/**
+ * Resolves mixed ingestion inputs into concrete .tgz archive paths.
+ *
+ * Supports direct .tgz files, folders containing .tgz files, and .zip files
+ * that expand to folders containing .tgz files.
+ *
+ * @param {string[]} inputPaths
+ * @param {string} inputRoot
+ * @returns {Promise<string[]>}
+ */
+export async function resolveInputArchivePaths(inputPaths, inputRoot) {
+  const unique = new Set();
+
+  for (const inputPath of inputPaths) {
+    let stats;
+
+    try {
+      stats = await fsp.stat(inputPath);
+    } catch {
+      continue;
+    }
+
+    if (stats.isFile() && isArchiveFile(inputPath)) {
+      unique.add(path.resolve(inputPath));
+      continue;
+    }
+
+    if (stats.isFile() && isZipFile(inputPath)) {
+      const expandedZipDir = await expandZipArchive(inputPath, inputRoot);
+      const discovered = await scanDirForArchives(expandedZipDir, 4);
+      for (const archivePath of discovered) {
+        unique.add(path.resolve(archivePath));
+      }
+      continue;
+    }
+
+    if (stats.isDirectory()) {
+      const discovered = await scanDirForArchives(inputPath, 2);
+      for (const archivePath of discovered) {
+        unique.add(path.resolve(archivePath));
       }
     }
   }

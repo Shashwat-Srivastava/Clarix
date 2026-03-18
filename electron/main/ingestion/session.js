@@ -39,12 +39,14 @@ function ensureSessionRecord(sessionId) {
   const rootDir = getSessionRootDir(sessionId);
   const extractedRoot = path.join(rootDir, 'extracted');
   const mergedRoot = path.join(rootDir, 'merged');
+  const inputRoot = path.join(rootDir, 'input');
 
   const session = {
     id: sessionId,
     rootDir,
     extractedRoot,
     mergedRoot,
+    inputRoot,
     loadedAt: new Date(),
     archiveCount: 0,
     components: [],
@@ -64,6 +66,7 @@ function ensureSessionRecord(sessionId) {
  * @returns {Promise<void>}
  */
 async function ensureSessionDirs(session) {
+  await fs.mkdir(session.inputRoot, { recursive: true });
   await fs.mkdir(session.extractedRoot, { recursive: true });
   await fs.mkdir(session.mergedRoot, { recursive: true });
 }
@@ -78,8 +81,10 @@ export async function prepareSessionWorkspace(sessionId) {
   const session = ensureSessionRecord(sessionId);
 
   await ensureSessionDirs(session);
+  await fs.rm(session.inputRoot, { recursive: true, force: true });
   await fs.rm(session.extractedRoot, { recursive: true, force: true });
   await fs.rm(session.mergedRoot, { recursive: true, force: true });
+  await fs.mkdir(session.inputRoot, { recursive: true });
   await fs.mkdir(session.extractedRoot, { recursive: true });
   await fs.mkdir(session.mergedRoot, { recursive: true });
 

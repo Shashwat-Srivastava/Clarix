@@ -211,6 +211,13 @@ export default function App() {
       return;
     }
 
+    if (
+      activeSession.activeView === 'log-viewer' &&
+      String(activeSession.componentContentFilter ?? '').trim()
+    ) {
+      return;
+    }
+
     if (activeSession.selectedComponentId) {
       return;
     }

@@ -1,5 +1,5 @@
 import { Copy, Download, WrapText } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useLogReader } from '../../hooks/useLogReader.js';
 import LogSearchBar from './LogSearchBar.jsx';
 import VirtualLogLines from './VirtualLogLines.jsx';
@@ -9,9 +9,17 @@ const LINE_TIMESTAMP_REGEX = /^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/;
 /**
  * Main log content pane.
  *
- * @param {{sessionId:string,component:Object|null,wrapLines:boolean,onToggleWrap:()=>void}} props
+ * @param {{sessionId:string,component:Object|null,wrapLines:boolean,onToggleWrap:()=>void,globalSearchQuery?:string,globalActiveMatchLine?:number|null,globalMatchedLines?:number[]}} props
  */
-export default function LogPane({ sessionId, component, wrapLines, onToggleWrap }) {
+export default function LogPane({
+  sessionId,
+  component,
+  wrapLines,
+  onToggleWrap,
+  globalSearchQuery = '',
+  globalActiveMatchLine = null,
+  globalMatchedLines = [],
+}) {
   const {
     lines,
     eof,
@@ -19,6 +27,7 @@ export default function LogPane({ sessionId, component, wrapLines, onToggleWrap 
     error,
     searchQuery,
     setSearchQuery,
+    matches,
     totalMatches,
     activeMatchIndex,
     activeMatch,
@@ -27,6 +36,11 @@ export default function LogPane({ sessionId, component, wrapLines, onToggleWrap 
     loadNextChunk,
     copyEntireLog,
   } = useLogReader(sessionId, component?.id);
+  const localMatchedLines = useMemo(
+    () => matches.map((match) => match.lineNumber),
+    [matches],
+  );
+  const scrollTargetLine = activeMatch?.lineNumber ?? globalActiveMatchLine;
 
   useEffect(() => {
     const onKeydown = (event) => {
@@ -42,6 +56,14 @@ export default function LogPane({ sessionId, component, wrapLines, onToggleWrap 
     window.addEventListener('keydown', onKeydown);
     return () => window.removeEventListener('keydown', onKeydown);
   }, []);
+
+  useEffect(() => {
+    if (!scrollTargetLine || eof || isLoadingChunk || lines.length >= scrollTargetLine) {
+      return;
+    }
+
+    loadNextChunk();
+  }, [eof, isLoadingChunk, lines.length, loadNextChunk, scrollTargetLine]);
 
   if (!component) {
     return (
@@ -116,7 +138,11 @@ export default function LogPane({ sessionId, component, wrapLines, onToggleWrap 
 
       <div className="h-[calc(100%-56px)]">
         <VirtualLogLines
-          activeMatchLine={activeMatch?.lineNumber}
+          globalActiveMatchLine={globalActiveMatchLine}
+          globalMatchedLines={globalMatchedLines}
+          globalQuery={globalSearchQuery}
+          localActiveMatchLine={activeMatch?.lineNumber}
+          localMatchedLines={localMatchedLines}
           lines={lines}
           onLineClick={async (line) => {
             const selectedText = window.getSelection()?.toString();

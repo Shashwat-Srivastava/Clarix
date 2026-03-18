@@ -1,7 +1,7 @@
 {
   "name": "cpe-log-analyser",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Native-feeling macOS app to ingest and analyse merged CPE logs.",
   "author": "CPE Tools Team",
   "type": "module",
