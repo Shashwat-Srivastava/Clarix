@@ -5,6 +5,12 @@ Clarix is a desktop app for CPE engineers to ingest `.tgz` CPE archives, merge c
 
 ## Setup
 
+Clone the repo:
+
+```bash
+git clone https://github.com/Shashwat-Srivastava/Clarix
+```
+Run the below commands:
 'bootstrap-mac.sh' script checks and installs all dependencies and 'build-dmg.sh' builds the universal `.dmg` for macOS distribution. 
 
 ```bash
