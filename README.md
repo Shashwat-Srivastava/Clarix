@@ -56,6 +56,15 @@ npm run build
 
 Build output includes renderer assets and Electron bundles, then packages a macOS `.dmg` with product name `Clarix`.
 
+Then follow the following steps:
+```
+1. Do a git pull on main, to ensure you have the latest changes
+2. Create a new feature branch from main
+3. Push your changes on this feature branch
+4. Create a PR on github
+5. After review and test, your changes will be merged to main branch.
+```
+
 ## Ingestion Pipeline
 
 1. Collect archive paths from folder picker, file picker, or drag/drop input.
