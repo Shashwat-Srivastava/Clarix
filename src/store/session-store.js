@@ -22,6 +22,7 @@ const DEFAULT_VIEW_STATE = {
   reportFilter: '',
   profileNameFilter: 'all',
   reverseOrder: false,
+  wifiAnalysisMode: 'json',
 };
 
 /**
@@ -130,6 +131,7 @@ function toPersistedSession(session) {
     reportFilter: session.reportFilter,
     profileNameFilter: session.profileNameFilter,
     reverseOrder: session.reverseOrder,
+    wifiAnalysisMode: session.wifiAnalysisMode,
     lastIngestPaths: Array.isArray(session.lastIngestPaths) ? session.lastIngestPaths : [],
   };
 }
@@ -207,6 +209,7 @@ function normalizeHydratedSession(session) {
     reportFilter: session?.reportFilter ?? '',
     profileNameFilter: session?.profileNameFilter ?? 'all',
     reverseOrder: Boolean(session?.reverseOrder),
+    wifiAnalysisMode: session?.wifiAnalysisMode ?? 'json',
   };
 }
 

@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { renderHighlightedText } from './text-highlighter.jsx';
 
 /**
@@ -35,6 +35,20 @@ function isComplex(value) {
   return value != null && typeof value === 'object';
 }
 
+function hasIndexLabel(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) && Object.hasOwn(value, 'index');
+}
+
+function omitIndexField(value) {
+  if (!hasIndexLabel(value)) {
+    return value;
+  }
+
+  const { index, ...rest } = value;
+  void index;
+  return rest;
+}
+
 /**
  * Collapsible JSON renderer with key-first display and search highlighting.
  *
@@ -48,6 +62,8 @@ function isComplex(value) {
  *  globalSearchQuery?:string,
  *  globalMatchedPaths?:Set<string>,
  *  globalActiveMatchPath?:string|null,
+ *  collapsedPaths?:Record<string,boolean>,
+ *  onToggleCollapse?:(path:string)=>void,
  *  registerNodeRef?:(path:string,node:HTMLElement|null)=>void,
  * }} props
  */
@@ -61,9 +77,10 @@ export default function JsonRenderer({
   globalSearchQuery = '',
   globalMatchedPaths = new Set(),
   globalActiveMatchPath = null,
+  collapsedPaths = {},
+  onToggleCollapse,
   registerNodeRef,
 }) {
-  const [collapsedPaths, setCollapsedPaths] = useState({});
 
   const matchedPathList = useMemo(
     () => [...new Set([...localMatchedPaths, ...globalMatchedPaths])],
@@ -77,6 +94,18 @@ export default function JsonRenderer({
     [globalSearchQuery, localSearchQuery],
   );
   const hasSearchQuery = Boolean(globalSearchQuery.trim() || localSearchQuery.trim());
+
+  const isPathCollapsed = (targetPath) => {
+    const manuallyCollapsed = Boolean(collapsedPaths[targetPath]);
+    const containsMatchedDescendant = matchedPathList.some(
+      (matchPath) =>
+        matchPath === targetPath ||
+        matchPath.startsWith(`${targetPath}.`) ||
+        matchPath.startsWith(`${targetPath}[`),
+    );
+
+    return hasSearchQuery && containsMatchedDescendant ? false : manuallyCollapsed;
+  };
 
   if (!isComplex(value)) {
     return (
@@ -97,20 +126,64 @@ export default function JsonRenderer({
           const itemPath = `${path}[${index}]`;
 
           if (isComplex(item)) {
+            const hasRealIndex = hasIndexLabel(item);
+
+            // When the item has no real "index" field, render its contents
+            // directly into the parent tree — no label, no collapse wrapper.
+            if (!hasRealIndex) {
+              return (
+                <JsonRenderer
+                  collapsedPaths={collapsedPaths}
+                  globalActiveMatchPath={globalActiveMatchPath}
+                  depth={depth}
+                  globalMatchedPaths={globalMatchedPaths}
+                  globalSearchQuery={globalSearchQuery}
+                  key={itemPath}
+                  localActiveMatchPath={localActiveMatchPath}
+                  localMatchedPaths={localMatchedPaths}
+                  localSearchQuery={localSearchQuery}
+                  onToggleCollapse={onToggleCollapse}
+                  path={itemPath}
+                  registerNodeRef={registerNodeRef}
+                  value={item}
+                />
+              );
+            }
+
+            const isCollapsed = isPathCollapsed(itemPath);
+
             return (
-              <JsonRenderer
-                globalActiveMatchPath={globalActiveMatchPath}
-                depth={depth + 1}
-                globalMatchedPaths={globalMatchedPaths}
-                globalSearchQuery={globalSearchQuery}
-                key={itemPath}
-                localActiveMatchPath={localActiveMatchPath}
-                localMatchedPaths={localMatchedPaths}
-                localSearchQuery={localSearchQuery}
-                path={itemPath}
-                registerNodeRef={registerNodeRef}
-                value={item}
-              />
+              <div key={itemPath}>
+                <button
+                  aria-label={`Toggle ${itemPath}.index`}
+                  className="inline-flex items-center gap-1 py-0.5 text-[color:var(--text-primary)]"
+                  onClick={() => onToggleCollapse?.(itemPath)}
+                  type="button"
+                >
+                  {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                  <span className="text-orange-300">index</span>
+                  <span className="text-[color:var(--text-muted)]">: </span>
+                  {renderPrimitive(item.index, highlightQueries)}
+                </button>
+
+                {!isCollapsed ? (
+                  <JsonRenderer
+                    collapsedPaths={collapsedPaths}
+                    globalActiveMatchPath={globalActiveMatchPath}
+                    depth={depth + 1}
+                    globalMatchedPaths={globalMatchedPaths}
+                    globalSearchQuery={globalSearchQuery}
+                    key={itemPath}
+                    localActiveMatchPath={localActiveMatchPath}
+                    localMatchedPaths={localMatchedPaths}
+                    localSearchQuery={localSearchQuery}
+                    onToggleCollapse={onToggleCollapse}
+                    path={itemPath}
+                    registerNodeRef={registerNodeRef}
+                    value={omitIndexField(item)}
+                  />
+                ) : null}
+              </div>
             );
           }
 
@@ -175,26 +248,14 @@ export default function JsonRenderer({
           );
         }
 
-        const manuallyCollapsed = Boolean(collapsedPaths[childPath]);
-        const containsMatchedDescendant = matchedPathList.some(
-          (matchPath) =>
-            matchPath === childPath ||
-            matchPath.startsWith(`${childPath}.`) ||
-            matchPath.startsWith(`${childPath}[`),
-        );
-        const isCollapsed = hasSearchQuery && containsMatchedDescendant ? false : manuallyCollapsed;
+        const isCollapsed = isPathCollapsed(childPath);
 
         return (
           <div key={childPath}>
             <button
               aria-label={`Toggle ${key}`}
               className="inline-flex items-center gap-1 py-0.5 text-[color:var(--text-primary)]"
-              onClick={() => {
-                setCollapsedPaths((previous) => ({
-                  ...previous,
-                  [childPath]: !previous[childPath],
-                }));
-              }}
+              onClick={() => onToggleCollapse?.(childPath)}
               type="button"
             >
               {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
@@ -204,6 +265,7 @@ export default function JsonRenderer({
 
             {!isCollapsed ? (
               <JsonRenderer
+                collapsedPaths={collapsedPaths}
                 globalActiveMatchPath={globalActiveMatchPath}
                 depth={depth + 1}
                 globalMatchedPaths={globalMatchedPaths}
@@ -211,6 +273,7 @@ export default function JsonRenderer({
                 localActiveMatchPath={localActiveMatchPath}
                 localMatchedPaths={localMatchedPaths}
                 localSearchQuery={localSearchQuery}
+                onToggleCollapse={onToggleCollapse}
                 path={childPath}
                 registerNodeRef={registerNodeRef}
                 value={childValue}

@@ -52,6 +52,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     invokeWithTimeout(IPC.SESSIONS_SYNC, [sessionsData], timeoutMs),
   deleteSessionDir: (sessionId, timeoutMs) =>
     invokeWithTimeout(IPC.SESSIONS_DELETE_DIR, [sessionId], timeoutMs),
+  dedupeLogFiles: (componentIds, timeoutMs) =>
+    invokeWithTimeout(IPC.DEDUPE_LOG_FILES, [componentIds], timeoutMs),
+  restoreLogFiles: (componentIds, timeoutMs) =>
+    invokeWithTimeout(IPC.RESTORE_LOG_FILES, [componentIds], timeoutMs),
   onIngestionProgress: (listener) => {
     const wrapped = (_event, payload) => listener(payload);
     ipcRenderer.on(IPC.INGESTION_PROGRESS, wrapped);

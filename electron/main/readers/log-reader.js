@@ -185,3 +185,59 @@ export function clearSessionChunkCache(sessionId) {
 export function isVeryLargeFile(fileSize) {
   return fileSize > 500 * 1024 * 1024;
 }
+
+/**
+ * Removes duplicate lines from a log file.  A line is considered duplicate
+ * only when the entire string (including any timestamp prefix) is identical
+ * to a previously seen line.  The original file is backed up to
+ * `<path>.bak` so it can be restored later.
+ *
+ * @param {string} filePath
+ * @returns {Promise<{duplicatesRemoved:number, totalLines:number}>}
+ */
+export async function dedupeLogFile(filePath) {
+  const content = await fsp.readFile(filePath, 'utf8');
+  const lines = content.split('\n');
+
+  const seen = new Set();
+  const unique = [];
+  let duplicatesRemoved = 0;
+
+  for (const line of lines) {
+    if (seen.has(line)) {
+      duplicatesRemoved += 1;
+    } else {
+      seen.add(line);
+      unique.push(line);
+    }
+  }
+
+  if (duplicatesRemoved > 0) {
+    // Back up the original before overwriting.
+    await fsp.copyFile(filePath, `${filePath}.bak`);
+    await fsp.writeFile(filePath, unique.join('\n'), 'utf8');
+  }
+
+  return { duplicatesRemoved, totalLines: lines.length };
+}
+
+/**
+ * Restores the original (pre-dedupe) version of a log file from its
+ * `.bak` backup.
+ *
+ * @param {string} filePath
+ * @returns {Promise<boolean>} true if a backup was restored
+ */
+export async function restoreLogFile(filePath) {
+  const backupPath = `${filePath}.bak`;
+
+  try {
+    await fsp.access(backupPath);
+  } catch {
+    return false;
+  }
+
+  await fsp.copyFile(backupPath, filePath);
+  await fsp.unlink(backupPath);
+  return true;
+}

@@ -19,4 +19,6 @@ export const IPC = {
   SESSIONS_LOAD: 'sessions:load',
   SESSIONS_DELETE_DIR: 'sessions:delete-dir',
   SESSIONS_SYNC: 'sessions:sync',
+  DEDUPE_LOG_FILES: 'dedupe-log-files',
+  RESTORE_LOG_FILES: 'restore-log-files',
 };

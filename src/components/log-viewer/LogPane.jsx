@@ -1,4 +1,4 @@
-import { Copy, Download, WrapText } from 'lucide-react';
+import { Copy, CopyMinus, CopyPlus, Download, WrapText } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useLogReader } from '../../hooks/useLogReader.js';
 import LogSearchBar from './LogSearchBar.jsx';
@@ -19,6 +19,10 @@ export default function LogPane({
   globalSearchQuery = '',
   globalActiveMatchLine = null,
   globalMatchedLines = [],
+  reloadKey = 0,
+  isDeduplicated = false,
+  isDeduplicating = false,
+  onToggleDedupe,
 }) {
   const {
     lines,
@@ -35,7 +39,7 @@ export default function LogPane({
     previousMatch,
     loadNextChunk,
     copyEntireLog,
-  } = useLogReader(sessionId, component?.id);
+  } = useLogReader(sessionId, component?.id, reloadKey);
   const localMatchedLines = useMemo(
     () => matches.map((match) => match.lineNumber),
     [matches],
@@ -76,7 +80,7 @@ export default function LogPane({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-[color:var(--border)] p-3">
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <LogSearchBar
             activeIndex={activeMatchIndex}
             onNext={nextMatch}
@@ -86,6 +90,21 @@ export default function LogPane({
             totalMatches={totalMatches}
           />
         </div>
+
+        <button
+          aria-label={isDeduplicated ? 'Restore original logs' : 'Remove identical logs'}
+          className={`inline-flex items-center gap-1 rounded-lg border px-3 py-2 ${
+            isDeduplicated
+              ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/10 text-[color:var(--accent)]'
+              : 'border-[color:var(--border)] hover:bg-[color:var(--bg-hover)]'
+          }`}
+          disabled={isDeduplicating}
+          onClick={onToggleDedupe}
+          type="button"
+        >
+          {isDeduplicated ? <CopyPlus size={14} /> : <CopyMinus size={14} />}
+          {isDeduplicating ? 'Working…' : isDeduplicated ? 'Restore logs' : 'Dedupe'}
+        </button>
 
         <button
           aria-label="Toggle line wrapping"

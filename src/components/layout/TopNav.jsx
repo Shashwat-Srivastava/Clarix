@@ -1,4 +1,4 @@
-import { CirclePlus, Database, House, MoonStar, SunMedium, TerminalSquare, X } from 'lucide-react';
+import { CirclePlus, Database, House, MoonStar, Network, SunMedium, TerminalSquare, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 /**
@@ -133,6 +133,12 @@ export default function TopNav({
     { id: 'home', label: 'Home', icon: House, enabled: true },
     { id: 'log-viewer', label: 'Log Viewer', icon: TerminalSquare, enabled: hasData },
     { id: 'telemetry-viewer', label: 'Telemetry Viewer', icon: Database, enabled: hasData && hasTelemetry },
+    {
+      id: 'wifi-dataelements',
+      label: 'Analyze WiFi DataElements',
+      icon: Network,
+      enabled: hasData && hasTelemetry,
+    },
   ];
 
   const normalizedViewTab = viewTab === 'telemetry-table' ? 'telemetry-viewer' : viewTab;

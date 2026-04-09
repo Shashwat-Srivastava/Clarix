@@ -1,24 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TableProperties } from 'lucide-react';
 import ResizablePanels from '../components/layout/ResizablePanels.jsx';
 import ReportList from '../components/telemetry-viewer/ReportList.jsx';
-import TelemetryDetail from '../components/telemetry-viewer/TelemetryDetail.jsx';
 import {
   buildGlobalSearchMatches,
   buildMatchedReportIndexSet,
-  getProfileNeedle,
-  groupMatchesByReportIndex,
 } from '../components/telemetry-viewer/viewer-search-state.js';
-import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
+import WifiAnalysisDetail from '../components/wifi-analysis/WifiAnalysisDetail.jsx';
 import { useTelemetry } from '../hooks/useTelemetry.js';
 import { useTimezone } from '../hooks/useTimezone.js';
 
-/**
- * Dedicated telemetry viewer page.
- *
- * @param {{session:Object,onSessionPatch:(patch:Object)=>void,onOpenTable:()=>void}} props
- */
-export default function TelemetryViewerPage({ session, onSessionPatch, onOpenTable }) {
+export default function WifiDataElementsPage({ session, onSessionPatch }) {
   const telemetryComponentId = session?.telemetryComponentId;
   const { timezone, setTimezone, formatTimestamp } = useTimezone({
     timezone: session?.timezone ?? 'UTC',
@@ -26,10 +17,9 @@ export default function TelemetryViewerPage({ session, onSessionPatch, onOpenTab
   });
 
   const reportFilter = session?.reportFilter ?? '';
-  const profileNameFilter = session?.profileNameFilter ?? 'all';
   const reverseOrder = Boolean(session?.reverseOrder);
-  const debouncedReportFilter = useDebouncedValue(reportFilter, 300);
-  const trimmedReportFilter = debouncedReportFilter.trim();
+  const viewMode = session?.wifiAnalysisMode ?? 'json';
+  const trimmedReportFilter = reportFilter.trim();
   const [globalSearchMatches, setGlobalSearchMatches] = useState([]);
   const [activeGlobalMatchIndex, setActiveGlobalMatchIndex] = useState(0);
 
@@ -74,7 +64,7 @@ export default function TelemetryViewerPage({ session, onSessionPatch, onOpenTab
         buildGlobalSearchMatches({
           reports,
           reportManifest,
-          profileNameFilter,
+          profileNameFilter: 'all',
           query: trimmedReportFilter,
         }),
       );
@@ -83,12 +73,7 @@ export default function TelemetryViewerPage({ session, onSessionPatch, onOpenTab
     return () => {
       active = false;
     };
-  }, [ensureAllReportsLoaded, profileNameFilter, reportManifest, trimmedReportFilter]);
-
-  const matchedPathsByReportIndex = useMemo(
-    () => groupMatchesByReportIndex(globalSearchMatches),
-    [globalSearchMatches],
-  );
+  }, [ensureAllReportsLoaded, reportManifest, trimmedReportFilter]);
 
   const matchedReportIndexSet = useMemo(
     () => buildMatchedReportIndexSet(globalSearchMatches),
@@ -113,13 +98,7 @@ export default function TelemetryViewerPage({ session, onSessionPatch, onOpenTab
   }, [globalSearchMatches]);
 
   const filteredReports = useMemo(() => {
-    const profileNeedle = getProfileNeedle(profileNameFilter);
     const filtered = reportManifest.filter((report) => {
-      const reportProfileName = String(report.profileName ?? '').toLowerCase();
-      if (profileNeedle && !reportProfileName.includes(profileNeedle)) {
-        return false;
-      }
-
       if (!trimmedReportFilter) {
         return true;
       }
@@ -133,7 +112,7 @@ export default function TelemetryViewerPage({ session, onSessionPatch, onOpenTab
     }
 
     return filtered;
-  }, [matchedReportIndexSet, profileNameFilter, reportManifest, reverseOrder, trimmedReportFilter]);
+  }, [matchedReportIndexSet, reportManifest, reverseOrder, trimmedReportFilter]);
 
   const activeGlobalMatch = globalSearchMatches[activeGlobalMatchIndex] ?? null;
 
@@ -164,8 +143,6 @@ export default function TelemetryViewerPage({ session, onSessionPatch, onOpenTab
       const firstMatchForReport = globalSearchMatches.findIndex((match) => match.reportIndex === index);
       if (firstMatchForReport >= 0) {
         setActiveGlobalMatchIndex(firstMatchForReport);
-        setSelectedReportIndex(index);
-        return;
       }
 
       setSelectedReportIndex(index);
@@ -211,52 +188,32 @@ export default function TelemetryViewerPage({ session, onSessionPatch, onOpenTab
       <ResizablePanels
         initialLeftWidth={320}
         left={
-          <div className="flex h-full flex-col">
-            <div className="min-h-0 flex-1">
-              <ReportList
-                filter={reportFilter}
-                onAdvanceSearch={handleAdvanceSearch}
-                formatTimestamp={formatTimestamp}
-                onFilterChange={(nextFilter) => onSessionPatch({ reportFilter: nextFilter })}
-                onProfileFilterChange={(nextProfileNameFilter) =>
-                  onSessionPatch({ profileNameFilter: nextProfileNameFilter })
-                }
-                onSelect={handleSelectReport}
-                onTimezoneChange={setTimezone}
-                onToggleOrder={() => onSessionPatch({ reverseOrder: !reverseOrder })}
-                profileFilter={profileNameFilter}
-                reports={filteredReports}
-                reverseOrder={reverseOrder}
-                selectedIndex={selectedReportIndex}
-                timezone={timezone}
-              />
-            </div>
-
-            <div className="border-t border-[color:var(--border)] p-3">
-              <button
-                aria-label="Open telemetry table view"
-                className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-[color:var(--accent)] px-3 py-2 text-white"
-                onClick={onOpenTable}
-                type="button"
-              >
-                <TableProperties size={15} />
-                View Tabular Data
-              </button>
-            </div>
+          <div className="min-h-0 h-full">
+            <ReportList
+              filter={reportFilter}
+              formatTimestamp={formatTimestamp}
+              onAdvanceSearch={handleAdvanceSearch}
+              onFilterChange={(nextFilter) => onSessionPatch({ reportFilter: nextFilter })}
+              onProfileFilterChange={() => {}}
+              onSelect={handleSelectReport}
+              onTimezoneChange={setTimezone}
+              onToggleOrder={() => onSessionPatch({ reverseOrder: !reverseOrder })}
+              profileFilter="all"
+              reports={filteredReports}
+              reverseOrder={reverseOrder}
+              selectedIndex={selectedReportIndex}
+              showProfileFilter={false}
+              timezone={timezone}
+            />
           </div>
         }
         right={
-          <TelemetryDetail
+          <WifiAnalysisDetail
             formattedTimestamp={
-              selectedReport?.timestamp
-                ? formatTimestamp(selectedReport.timestamp)
-                : selectedReport?.rawTimestamp
-                  ? formatTimestamp(selectedReport.rawTimestamp)
-                  : 'No report selected'
+              selectedReport ? formatTimestamp(selectedReport.timestamp ?? selectedReport.rawTimestamp) : ''
             }
-            globalActiveMatchPath={activeGlobalMatch?.reportIndex === selectedReportIndex ? activeGlobalMatch.path : null}
-            globalMatchedPaths={matchedPathsByReportIndex[selectedReportIndex] ?? []}
-            globalSearchQuery={trimmedReportFilter}
+            mode={viewMode}
+            onModeChange={(nextMode) => onSessionPatch({ wifiAnalysisMode: nextMode })}
             report={selectedReport}
           />
         }

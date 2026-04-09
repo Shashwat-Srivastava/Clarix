@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useDebouncedValue } from './useDebouncedValue.js';
 
 const CHUNK_SIZE = 256 * 1024;
 
@@ -9,7 +10,7 @@ const CHUNK_SIZE = 256 * 1024;
  * @param {string | null | undefined} componentId
  * @returns {Object}
  */
-export function useLogReader(sessionId, componentId) {
+export function useLogReader(sessionId, componentId, reloadKey = 0) {
   const [text, setText] = useState('');
   const [offset, setOffset] = useState(0);
   const [fileSize, setFileSize] = useState(0);
@@ -18,6 +19,7 @@ export function useLogReader(sessionId, componentId) {
   const [matches, setMatches] = useState([]);
   const [totalMatches, setTotalMatches] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
   const [error, setError] = useState(null);
 
@@ -69,7 +71,7 @@ export function useLogReader(sessionId, componentId) {
     }
 
     loadChunk(0);
-  }, [componentId, loadChunk, reset, sessionId]);
+  }, [componentId, loadChunk, reset, sessionId, reloadKey]);
 
   const loadNextChunk = useCallback(() => {
     if (eof || isLoadingChunk || !sessionId || !componentId) {
@@ -79,7 +81,7 @@ export function useLogReader(sessionId, componentId) {
   }, [componentId, eof, isLoadingChunk, loadChunk, offset, sessionId]);
 
   useEffect(() => {
-    if (!sessionId || !componentId || !searchQuery.trim()) {
+    if (!sessionId || !componentId || !debouncedSearchQuery.trim()) {
       setMatches([]);
       setTotalMatches(0);
       setActiveMatchIndex(0);
@@ -89,7 +91,7 @@ export function useLogReader(sessionId, componentId) {
     let active = true;
 
     window.electronAPI
-      .searchLogFile(componentId, searchQuery.trim(), { caseSensitive: false, maxMatches: 5000 })
+      .searchLogFile(componentId, debouncedSearchQuery.trim(), { caseSensitive: false, maxMatches: 5000 })
       .then((result) => {
         if (!active) {
           return;
@@ -109,7 +111,7 @@ export function useLogReader(sessionId, componentId) {
     return () => {
       active = false;
     };
-  }, [componentId, searchQuery, sessionId]);
+  }, [componentId, debouncedSearchQuery, sessionId]);
 
   const lines = useMemo(() => {
     if (!text) {

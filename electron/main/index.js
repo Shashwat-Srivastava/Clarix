@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import log from 'electron-log';
@@ -40,6 +40,16 @@ function createWindow() {
 app.whenReady().then(() => {
   log.initialize();
   log.info('App ready');
+
+  // macOS requires an explicit Edit menu for clipboard shortcuts (Cmd+C/V/X/A)
+  // to be dispatched correctly to renderer <input> elements.
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { role: 'appMenu' },
+      { role: 'editMenu' },
+      { role: 'windowMenu' },
+    ]),
+  );
 
   registerIpcHandlers();
   createWindow();

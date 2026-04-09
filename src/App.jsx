@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from './components/layout/AppShell.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import ProgressOverlay from './components/ingestion/ProgressOverlay.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LogViewerPage from './pages/LogViewerPage.jsx';
 import TelemetryViewerPage from './pages/TelemetryViewerPage.jsx';
 import TelemetryTablePage from './pages/TelemetryTablePage.jsx';
+import WifiDataElementsPage from './pages/WifiDataElementsPage.jsx';
 import { createFreshSession, MAX_SESSIONS, useSessionStore } from './store/session-store.js';
 
 const IDLE_PROGRESS = { stage: 'idle', current: 0, total: 0, detail: '' };
@@ -211,9 +213,12 @@ export default function App() {
       return;
     }
 
+    // When any filter is active on the log-viewer, the page-level effect
+    // owns selection — bail out so the two effects don't fight and loop.
     if (
       activeSession.activeView === 'log-viewer' &&
-      String(activeSession.componentContentFilter ?? '').trim()
+      (String(activeSession.componentContentFilter ?? '').trim() ||
+        String(activeSession.componentFilter ?? '').trim())
     ) {
       return;
     }
@@ -334,6 +339,10 @@ export default function App() {
       );
     }
 
+    if (activeView === 'wifi-dataelements') {
+      return <WifiDataElementsPage onSessionPatch={patchActiveSession} session={activeSession} />;
+    }
+
     if (activeView === 'telemetry-table') {
       return (
         <TelemetryTablePage
@@ -348,6 +357,7 @@ export default function App() {
   })();
 
   return (
+    <ErrorBoundary>
     <div className="relative h-full w-full">
       <AppShell
         activeSessionId={activeSessionId}
@@ -400,5 +410,6 @@ export default function App() {
         <ProgressOverlay progress={activeSession.progress ?? IDLE_PROGRESS} />
       ) : null}
     </div>
+    </ErrorBoundary>
   );
 }

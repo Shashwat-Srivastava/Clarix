@@ -32,6 +32,8 @@ import {
   readLogFileChunk,
   searchLogFile,
   clearSessionChunkCache,
+  dedupeLogFile,
+  restoreLogFile,
 } from './readers/log-reader.js';
 
 let activeIngestionController = null;
@@ -765,5 +767,54 @@ export function registerIpcHandlers() {
     });
 
     return { cancelled: false, filePath: result.filePath };
+  });
+
+  // ── Deduplicate / Restore log files ──────────────────────────────────
+
+  ipcMain.handle(IPC.DEDUPE_LOG_FILES, async (_event, componentIds) => {
+    const session = getActiveSession();
+    if (!session) {
+      throw new Error('No active session.');
+    }
+
+    const results = [];
+
+    for (const componentId of componentIds) {
+      const component = findComponent(session.id, componentId);
+      if (!component) {
+        continue;
+      }
+
+      const stats = await dedupeLogFile(component.mergedFilePath);
+      clearSessionChunkCache(session.id);
+
+      if (stats.duplicatesRemoved > 0) {
+        results.push({
+          componentId,
+          name: component.name,
+          duplicatesRemoved: stats.duplicatesRemoved,
+          totalLines: stats.totalLines,
+        });
+      }
+    }
+
+    return results;
+  });
+
+  ipcMain.handle(IPC.RESTORE_LOG_FILES, async (_event, componentIds) => {
+    const session = getActiveSession();
+    if (!session) {
+      throw new Error('No active session.');
+    }
+
+    for (const componentId of componentIds) {
+      const component = findComponent(session.id, componentId);
+      if (!component) {
+        continue;
+      }
+
+      await restoreLogFile(component.mergedFilePath);
+      clearSessionChunkCache(session.id);
+    }
   });
 }

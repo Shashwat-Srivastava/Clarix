@@ -27,6 +27,7 @@ export default function ReportList({
   formatTimestamp,
   timezone,
   onTimezoneChange,
+  showProfileFilter = true,
 }) {
   const selectedIndexInView = reports.findIndex((report) => report.index === selectedIndex);
 
@@ -54,32 +55,36 @@ export default function ReportList({
           />
         </div>
 
-        <div className="mb-2 border-b border-[color:var(--border)]" />
+        {showProfileFilter ? (
+          <>
+            <div className="mb-2 border-b border-[color:var(--border)]" />
 
-        <div className="mb-2">
-          <div className="mb-2 text-xs text-[color:var(--text-muted)]">Profile</div>
-          <div className="flex flex-wrap gap-2">
-          {PROFILE_FILTER_OPTIONS.map((option) => {
-            const active = profileFilter === option.value;
+            <div className="mb-2">
+              <div className="mb-2 text-xs text-[color:var(--text-muted)]">Profile</div>
+              <div className="flex flex-wrap gap-2">
+                {PROFILE_FILTER_OPTIONS.map((option) => {
+                  const active = profileFilter === option.value;
 
-            return (
-              <button
-                aria-label={`Filter telemetry reports by ${option.label}`}
-                className={`rounded-md px-2 py-1 text-xs transition-colors ${
-                  active
-                    ? 'bg-[color:var(--accent)] text-white'
-                    : 'border border-[color:var(--border)] hover:bg-[color:var(--bg-hover)]'
-                }`}
-                key={option.value}
-                onClick={() => onProfileFilterChange(option.value)}
-                type="button"
-              >
-                {option.label}
-              </button>
-            );
-          })}
-          </div>
-        </div>
+                  return (
+                    <button
+                      aria-label={`Filter telemetry reports by ${option.label}`}
+                      className={`rounded-md px-2 py-1 text-xs transition-colors ${
+                        active
+                          ? 'bg-[color:var(--accent)] text-white'
+                          : 'border border-[color:var(--border)] hover:bg-[color:var(--bg-hover)]'
+                      }`}
+                      key={option.value}
+                      onClick={() => onProfileFilterChange(option.value)}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        ) : null}
 
         <div className="mb-2 border-b border-[color:var(--border)]" />
 

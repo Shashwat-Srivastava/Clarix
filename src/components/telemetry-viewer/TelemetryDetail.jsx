@@ -18,6 +18,14 @@ export default function TelemetryDetail({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const [collapsedPaths, setCollapsedPaths] = useState({});
+
+  const toggleCollapsedPath = useCallback((targetPath) => {
+    setCollapsedPaths((previous) => ({
+      ...previous,
+      [targetPath]: !previous[targetPath],
+    }));
+  }, []);
 
   const nodeRefs = useRef(new Map());
 
@@ -32,6 +40,7 @@ export default function TelemetryDetail({
   useEffect(() => {
     setSearchQuery('');
     setActiveMatchIndex(0);
+    setCollapsedPaths({});
   }, [report?.sequenceNumber]);
   const outputData = report?.data ?? report?.rawJson ?? null;
 
@@ -180,12 +189,14 @@ export default function TelemetryDetail({
         ) : null}
         {report.data ? (
           <JsonRenderer
+            collapsedPaths={collapsedPaths}
             globalActiveMatchPath={globalActiveMatchPath}
             globalMatchedPaths={globalMatchedPathSet}
             globalSearchQuery={globalSearchQuery}
             localActiveMatchPath={activeMatchPath}
             localMatchedPaths={matchedPathSet}
             localSearchQuery={searchQuery}
+            onToggleCollapse={toggleCollapsedPath}
             registerNodeRef={registerNodeRef}
             value={report.data}
           />
