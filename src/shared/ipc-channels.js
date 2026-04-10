@@ -21,4 +21,5 @@ export const IPC = {
   SESSIONS_SYNC: 'sessions:sync',
   DEDUPE_LOG_FILES: 'dedupe-log-files',
   RESTORE_LOG_FILES: 'restore-log-files',
+  INGEST_RAW_TELEMETRY: 'ingest-raw-telemetry',
 };

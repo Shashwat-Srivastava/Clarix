@@ -52,6 +52,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     invokeWithTimeout(IPC.SESSIONS_SYNC, [sessionsData], timeoutMs),
   deleteSessionDir: (sessionId, timeoutMs) =>
     invokeWithTimeout(IPC.SESSIONS_DELETE_DIR, [sessionId], timeoutMs),
+  ingestRawTelemetry: (rawText, sessionId, timeoutMs) =>
+    invokeWithTimeout(IPC.INGEST_RAW_TELEMETRY, [{ rawText, sessionId }], timeoutMs),
   dedupeLogFiles: (componentIds, timeoutMs) =>
     invokeWithTimeout(IPC.DEDUPE_LOG_FILES, [componentIds], timeoutMs),
   restoreLogFiles: (componentIds, timeoutMs) =>

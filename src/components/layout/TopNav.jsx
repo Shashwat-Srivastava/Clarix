@@ -117,6 +117,7 @@ export default function TopNav({
   onViewTabChange,
   hasData,
   hasTelemetry,
+  isRawTelemetrySession,
   sessions,
   activeSessionId,
   canAddSession,
@@ -131,7 +132,12 @@ export default function TopNav({
 }) {
   const tabs = [
     { id: 'home', label: 'Home', icon: House, enabled: true },
-    { id: 'log-viewer', label: 'Log Viewer', icon: TerminalSquare, enabled: hasData },
+    {
+      id: 'log-viewer',
+      label: 'Log Viewer',
+      icon: TerminalSquare,
+      enabled: hasData && !isRawTelemetrySession,
+    },
     { id: 'telemetry-viewer', label: 'Telemetry Viewer', icon: Database, enabled: hasData && hasTelemetry },
     {
       id: 'wifi-dataelements',

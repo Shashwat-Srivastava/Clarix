@@ -26,6 +26,8 @@ export default function App() {
   const updateSession = useSessionStore((state) => state.updateSession);
   const hydrateFromDisk = useSessionStore((state) => state.hydrateFromDisk);
 
+  const [showRawTelemetryInput, setShowRawTelemetryInput] = useState(false);
+
   const [theme, setTheme] = useState(() => {
     const stored = localStorage.getItem('cpe-theme');
     if (stored === 'dark' || stored === 'light') {
@@ -115,6 +117,7 @@ export default function App() {
         errorMessage: null,
         progress: { ...IDLE_PROGRESS },
         activeView: 'log-viewer',
+        isRawTelemetrySession: false,
       });
     });
 
@@ -179,6 +182,7 @@ export default function App() {
         selectedTelemetryIndex: null,
         reportManifest: [],
         reportCache: {},
+        isRawTelemetrySession: false,
         progress: {
           stage: 'collect',
           current: 0,
@@ -204,6 +208,43 @@ export default function App() {
           progress: { ...IDLE_PROGRESS },
         });
       }
+    },
+    [activeSessionId, updateSession],
+  );
+
+  const handleSubmitRawTelemetry = useCallback(
+    async (rawText) => {
+      if (!activeSessionId) {
+        return;
+      }
+
+      const result = await window.electronAPI.ingestRawTelemetry(rawText, activeSessionId);
+
+      updateSession(activeSessionId, {
+        status: 'ready',
+        archiveCount: 0,
+        components: [
+          {
+            id: result.telemetryComponentId,
+            name: 'Pasted Telemetry',
+            mergedFilePath: null,
+            sizeBytes: rawText.length,
+            hasTelemetry: true,
+          },
+        ],
+        telemetryComponentId: result.telemetryComponentId,
+        selectedComponentId: null,
+        selectedTelemetryIndex: null,
+        reportManifest: result.manifest,
+        reportCache: {},
+        warnings: [],
+        errorMessage: null,
+        progress: { ...IDLE_PROGRESS },
+        activeView: 'telemetry-viewer',
+        isRawTelemetrySession: true,
+      });
+
+      setShowRawTelemetryInput(false);
     },
     [activeSessionId, updateSession],
   );
@@ -235,10 +276,16 @@ export default function App() {
 
   const hasData = Boolean(activeSession?.components?.length);
   const hasTelemetry = Boolean(activeSession?.telemetryComponentId);
+  const isRawTelemetrySession = Boolean(activeSession?.isRawTelemetrySession);
 
   const sessionInfo = useMemo(() => {
     if (!activeSession || !activeSession.components?.length) {
       return null;
+    }
+
+    if (activeSession.isRawTelemetrySession) {
+      const count = activeSession.reportManifest?.length ?? 0;
+      return `Pasted telemetry · ${count} report${count !== 1 ? 's' : ''}`;
     }
 
     return `${activeSession.archiveCount} archives loaded · ${activeSession.components.length} components`;
@@ -303,6 +350,7 @@ export default function App() {
       return (
         <HomePage
           error={activeSession.errorMessage ? { message: activeSession.errorMessage } : null}
+          onCancelRawTelemetryInput={() => setShowRawTelemetryInput(false)}
           onDropPaths={startIngestion}
           onRetry={() => {
             if (activeSession.lastIngestPaths?.length) {
@@ -321,6 +369,9 @@ export default function App() {
               startIngestion(folders);
             }
           }}
+          onShowRawTelemetryInput={() => setShowRawTelemetryInput(true)}
+          onSubmitRawTelemetry={handleSubmitRawTelemetry}
+          showRawTelemetryInput={showRawTelemetryInput}
         />
       );
     }
@@ -364,6 +415,7 @@ export default function App() {
         canAddSession={sessions.length < MAX_SESSIONS}
         hasData={hasData}
         hasTelemetry={hasTelemetry}
+        isRawTelemetrySession={isRawTelemetrySession}
         maxSessions={MAX_SESSIONS}
         onAddSession={addSession}
         onCloseSession={handleCloseSession}
@@ -373,6 +425,7 @@ export default function App() {
             return;
           }
 
+          setShowRawTelemetryInput(false);
           const targetSession = sessions.find((session) => session.id === sessionId);
           const resolvedView =
             targetSession?.status === 'ready'

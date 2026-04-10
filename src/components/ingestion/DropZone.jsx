@@ -1,12 +1,12 @@
-import { FolderOpen, UploadCloud } from 'lucide-react';
+import { ClipboardPaste, FolderOpen, UploadCloud } from 'lucide-react';
 import { useState } from 'react';
 
 /**
  * Landing drop zone to start a new ingest operation.
  *
- * @param {{onSelectFolder:()=>void,onSelectFiles:()=>void,onDropPaths:(paths:string[])=>void}} props
+ * @param {{onSelectFolder:()=>void,onSelectFiles:()=>void,onDropPaths:(paths:string[])=>void,onPasteRawTelemetry?:()=>void}} props
  */
-export default function DropZone({ onSelectFolder, onSelectFiles, onDropPaths }) {
+export default function DropZone({ onSelectFolder, onSelectFiles, onDropPaths, onPasteRawTelemetry }) {
   const [dragging, setDragging] = useState(false);
 
   return (
@@ -64,6 +64,19 @@ export default function DropZone({ onSelectFolder, onSelectFiles, onDropPaths })
             type="button"
           >
             Select Files
+          </button>
+        </div>
+
+        <div className="mt-6 border-t border-[color:var(--border)] pt-6">
+          <p className="mb-3 text-sm text-[color:var(--text-muted)]">Or analyze raw telemetry data directly:</p>
+          <button
+            aria-label="Paste raw telemetry"
+            className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--border)] px-4 py-2 hover:bg-[color:var(--bg-hover)]"
+            onClick={onPasteRawTelemetry}
+            type="button"
+          >
+            <ClipboardPaste size={16} />
+            Paste Raw Telemetry
           </button>
         </div>
       </div>

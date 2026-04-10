@@ -47,6 +47,7 @@ function createDefaultSession(id, name) {
     progress: { ...DEFAULT_PROGRESS },
     reportManifest: [],
     reportCache: {},
+    isRawTelemetrySession: false,
     ...DEFAULT_VIEW_STATE,
   };
 }

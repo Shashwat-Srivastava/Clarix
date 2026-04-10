@@ -11,6 +11,7 @@ export default function AppShell({
   onViewTabChange,
   hasData,
   hasTelemetry,
+  isRawTelemetrySession,
   sessions,
   activeSessionId,
   canAddSession,
@@ -30,6 +31,7 @@ export default function AppShell({
         canAddSession={canAddSession}
         hasData={hasData}
         hasTelemetry={hasTelemetry}
+        isRawTelemetrySession={isRawTelemetrySession}
         maxSessions={maxSessions}
         onAddSession={onAddSession}
         onCloseSession={onCloseSession}

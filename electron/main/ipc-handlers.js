@@ -25,6 +25,7 @@ import {
 } from './ingestion/session.js';
 import {
   parseTelemetryFileFromPath,
+  parseRawTelemetryText,
   buildTelemetryManifest,
 } from './readers/telemetry-parser.js';
 import {
@@ -816,5 +817,45 @@ export function registerIpcHandlers() {
       await restoreLogFile(component.mergedFilePath);
       clearSessionChunkCache(session.id);
     }
+  });
+
+  ipcMain.handle(IPC.INGEST_RAW_TELEMETRY, async (_event, { rawText, sessionId }) => {
+    if (!rawText || typeof rawText !== 'string') {
+      throw new Error('No telemetry text provided.');
+    }
+
+    if (!sessionId) {
+      throw new Error('No session ID provided.');
+    }
+
+    const reports = parseRawTelemetryText(rawText);
+    if (!reports.length) {
+      throw new Error('No valid telemetry reports found in the pasted text. Expected JSON blocks containing {"Report":[...]}.');
+    }
+
+    // Create a synthetic telemetry component so the existing PARSE_TELEMETRY
+    // and GET_TELEMETRY_REPORT handlers can work unmodified.
+    const syntheticComponentId = `raw-telemetry-${sessionId}`;
+
+    setActiveSession(sessionId);
+    setTelemetryReports(sessionId, reports);
+    updateSession(sessionId, {
+      telemetryComponentId: syntheticComponentId,
+      components: [
+        {
+          id: syntheticComponentId,
+          name: 'Pasted Telemetry',
+          mergedFilePath: null,
+          sizeBytes: rawText.length,
+          hasTelemetry: true,
+        },
+      ],
+    });
+
+    return {
+      telemetryComponentId: syntheticComponentId,
+      reportCount: reports.length,
+      manifest: buildTelemetryManifest(reports),
+    };
   });
 }
