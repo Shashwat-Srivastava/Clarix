@@ -357,16 +357,86 @@ export default function App() {
               startIngestion(activeSession.lastIngestPaths);
             }
           }}
-          onSelectFiles={async () => {
-            const files = await window.electronAPI.openFileDialog();
+          onSelectTgzFiles={async () => {
+            const files = await window.electronAPI.openFileTgzDialog();
             if (files?.length) {
               startIngestion(files);
             }
           }}
-          onSelectFolder={async () => {
+          onSelectZipFiles={async () => {
+            const files = await window.electronAPI.openFileZipDialog();
+            if (files?.length) {
+              startIngestion(files);
+            }
+          }}
+          onSelectTgzFolder={async () => {
             const folders = await window.electronAPI.openFolderDialog();
             if (folders?.length) {
               startIngestion(folders);
+            }
+          }}
+          onSelectMergedFolder={async () => {
+            const folders = await window.electronAPI.openFolderMergedDialog();
+            if (!folders?.length || !activeSessionId) {
+              return;
+            }
+
+            const currentSessionId = activeSessionId;
+
+            updateSession(currentSessionId, {
+              status: 'loading',
+              errorMessage: null,
+              warnings: [],
+              components: [],
+              telemetryComponentId: null,
+              selectedComponentId: null,
+              selectedTelemetryIndex: null,
+              reportManifest: [],
+              reportCache: {},
+              isRawTelemetrySession: false,
+              lastIngestPaths: folders,
+              progress: {
+                stage: 'copy',
+                current: 0,
+                total: 0,
+                detail: 'Scanning folder…',
+              },
+              activeView: 'home',
+            });
+
+            try {
+              const result = await window.electronAPI.ingestMergedFolder(
+                folders[0],
+                currentSessionId,
+                30 * 60 * 1000,
+              );
+
+              // Apply result directly instead of only relying on the
+              // INGESTION_COMPLETE event, to guarantee the transition.
+              const components = result?.components ?? [];
+              const firstComponentId = components[0]?.id ?? null;
+
+              updateSession(currentSessionId, {
+                status: 'ready',
+                archiveCount: result?.session?.archiveCount ?? components.length,
+                components,
+                telemetryComponentId: result?.session?.telemetryComponentId ?? null,
+                selectedComponentId: firstComponentId,
+                selectedTelemetryIndex: null,
+                reportManifest: [],
+                reportCache: {},
+                warnings: result?.warnings ?? [],
+                errorMessage: null,
+                progress: { ...IDLE_PROGRESS },
+                activeView: 'log-viewer',
+                isRawTelemetrySession: false,
+              });
+            } catch (ingestError) {
+              updateSession(currentSessionId, {
+                status: 'error',
+                errorMessage: ingestError instanceof Error ? ingestError.message : 'Failed to load merged folder',
+                progress: { ...IDLE_PROGRESS },
+              });
             }
           }}
           onShowRawTelemetryInput={() => setShowRawTelemetryInput(true)}

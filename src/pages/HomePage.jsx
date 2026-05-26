@@ -8,8 +8,10 @@ import RawTelemetryInput from '../components/ingestion/RawTelemetryInput.jsx';
  * @param {Object} props
  */
 export default function HomePage({
-  onSelectFolder,
-  onSelectFiles,
+  onSelectTgzFiles,
+  onSelectZipFiles,
+  onSelectTgzFolder,
+  onSelectMergedFolder,
   onDropPaths,
   error,
   onRetry,
@@ -32,8 +34,10 @@ export default function HomePage({
       <DropZone
         onDropPaths={onDropPaths}
         onPasteRawTelemetry={onShowRawTelemetryInput}
-        onSelectFiles={onSelectFiles}
-        onSelectFolder={onSelectFolder}
+        onSelectMergedFolder={onSelectMergedFolder}
+        onSelectTgzFiles={onSelectTgzFiles}
+        onSelectTgzFolder={onSelectTgzFolder}
+        onSelectZipFiles={onSelectZipFiles}
       />
       <IngestionError error={error} onRetry={onRetry} />
     </div>

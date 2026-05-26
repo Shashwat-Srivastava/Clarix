@@ -301,6 +301,20 @@ export function persistSessionsSnapshotSync() {
 export function registerIpcHandlers() {
   ipcMain.handle(IPC.OPEN_FOLDER, async () => {
     const result = await dialog.showOpenDialog({
+      title: 'Select folder containing .tgz archives',
+      properties: ['openDirectory'],
+    });
+
+    if (result.canceled || !result.filePaths.length) {
+      return null;
+    }
+
+    return result.filePaths;
+  });
+
+  ipcMain.handle(IPC.OPEN_FOLDER_MERGED, async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Select folder with merged / expanded logs',
       properties: ['openDirectory'],
     });
 
@@ -315,6 +329,34 @@ export function registerIpcHandlers() {
     const result = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
       filters: [{ name: 'Archives', extensions: ['tgz', 'tar.gz', 'zip'] }],
+    });
+
+    if (result.canceled || !result.filePaths.length) {
+      return null;
+    }
+
+    return result.filePaths;
+  });
+
+  ipcMain.handle(IPC.OPEN_FILE_TGZ, async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Select .tgz archives',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'TGZ Archives', extensions: ['tgz', 'tar.gz'] }],
+    });
+
+    if (result.canceled || !result.filePaths.length) {
+      return null;
+    }
+
+    return result.filePaths;
+  });
+
+  ipcMain.handle(IPC.OPEN_FILE_ZIP, async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Select .zip files',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'ZIP Archives', extensions: ['zip'] }],
     });
 
     if (result.canceled || !result.filePaths.length) {
@@ -857,5 +899,172 @@ export function registerIpcHandlers() {
       reportCount: reports.length,
       manifest: buildTelemetryManifest(reports),
     };
+  });
+
+  // ── Merged / expanded folder ingestion ────────────────────────────────
+  // Copies files directly into the session mergedRoot (no extraction or
+  // merging needed). Strips leading date-time prefixes from filenames,
+  // e.g. "2026-02-25-16-33-02_CELLULARMANAGERLog.txt" → "CELLULARMANAGERLog.txt"
+  const DATETIME_PREFIX_RE = /^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}_/;
+
+  ipcMain.handle(IPC.INGEST_MERGED_FOLDER, async (event, payload) => {
+    // Normalize — payload may arrive as positional args or an object.
+    const folderPath = payload?.folderPath ?? payload;
+    const sessionId = payload?.sessionId ??
+      normalizeSessionsSnapshot(currentSessionsState).activeSessionId;
+
+    if (!folderPath || typeof folderPath !== 'string') {
+      throw new Error('No folder path provided.');
+    }
+
+    if (!sessionId) {
+      throw new Error('No session ID provided.');
+    }
+
+    log.info('[merged-folder] Starting ingestion', { folderPath, sessionId });
+
+    clearSessionChunkCache(sessionId);
+    setActiveSession(sessionId);
+
+    patchCurrentSessionState(sessionId, {
+      status: 'loading',
+      errorMessage: null,
+      archiveCount: 0,
+      components: [],
+      telemetryComponentId: null,
+      selectedComponentId: null,
+      selectedTelemetryIndex: null,
+    });
+
+    const session = await prepareSessionWorkspace(sessionId);
+
+    sendProgress(event.sender, {
+      sessionId,
+      stage: 'copy',
+      current: 0,
+      total: 0,
+      detail: 'Scanning folder…',
+    });
+
+    // Collect all files — recurse one level deep so expanded .tgz folders
+    // that wrap their contents in a single sub-directory are also handled.
+    const filesToCopy = [];
+
+    async function collectFiles(dir) {
+      let entries;
+      try {
+        entries = await fsp.readdir(dir, { withFileTypes: true });
+      } catch (readError) {
+        log.warn('[merged-folder] Cannot read directory', { dir, error: readError.message });
+        return;
+      }
+
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) {
+          continue;
+        }
+
+        const fullPath = path.join(dir, entry.name);
+
+        if (entry.isFile()) {
+          filesToCopy.push(fullPath);
+        } else if (entry.isDirectory()) {
+          // Recurse into sub-directories — handles both single-subdirectory
+          // wrappers and nested structures from expanded archives.
+          await collectFiles(fullPath);
+        }
+      }
+    }
+
+    await collectFiles(folderPath);
+
+    log.info('[merged-folder] Found files', { count: filesToCopy.length });
+
+    if (!filesToCopy.length) {
+      const errorPayload = {
+        sessionId,
+        message: 'No log files found in the selected folder.',
+      };
+      event.sender.send(IPC.INGESTION_ERROR, errorPayload);
+      throw new Error(errorPayload.message);
+    }
+
+    // Copy each file into mergedRoot, stripping datetime prefix if present.
+    for (let i = 0; i < filesToCopy.length; i += 1) {
+      const srcPath = filesToCopy[i];
+      const rawName = path.basename(srcPath);
+      const cleanName = rawName.replace(DATETIME_PREFIX_RE, '');
+      const destPath = path.join(session.mergedRoot, cleanName);
+
+      sendProgress(event.sender, {
+        sessionId,
+        stage: 'copy',
+        current: i + 1,
+        total: filesToCopy.length,
+        detail: `Copying ${cleanName}`,
+      });
+
+      await fsp.copyFile(srcPath, destPath);
+    }
+
+    log.info('[merged-folder] Files copied, building manifest');
+
+    // Build component manifest from copied files.
+    const components = await buildComponentManifest(session.mergedRoot);
+    const warnings = [];
+    let telemetryComponentId = null;
+
+    const telemetryComponent = components.find((c) => c.hasTelemetry);
+    if (telemetryComponent) {
+      try {
+        const reports = await parseTelemetryFileFromPath(telemetryComponent.mergedFilePath);
+        if (reports.length) {
+          setTelemetryReports(sessionId, reports);
+          telemetryComponentId = telemetryComponent.id;
+        }
+      } catch (error) {
+        warnings.push({
+          archivePath: telemetryComponent.mergedFilePath,
+          message: `Telemetry parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        });
+      }
+    }
+
+    updateSession(sessionId, {
+      components,
+      telemetryComponentId,
+      warnings,
+      archiveCount: 1,
+    });
+
+    patchCurrentSessionState(sessionId, {
+      status: 'ready',
+      errorMessage: null,
+      archiveCount: 1,
+      components,
+      telemetryComponentId,
+    });
+
+    const payloadToRenderer = {
+      sessionId,
+      session: {
+        id: session.id,
+        loadedAt: session.loadedAt,
+        archiveCount: 1,
+        components,
+        telemetryComponentId,
+      },
+      components,
+      warnings,
+    };
+
+    log.info('[merged-folder] Sending INGESTION_COMPLETE', {
+      sessionId,
+      componentCount: components.length,
+      hasTelemetry: Boolean(telemetryComponentId),
+    });
+
+    event.sender.send(IPC.INGESTION_COMPLETE, payloadToRenderer);
+    return payloadToRenderer;
   });
 }

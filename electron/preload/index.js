@@ -41,7 +41,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportMergedLogs: (timeoutMs) =>
     invokeWithTimeout(IPC.EXPORT_MERGED_LOGS, [], timeoutMs),
   openFolderDialog: (timeoutMs) => invokeWithTimeout(IPC.OPEN_FOLDER, [], timeoutMs),
+  openFolderMergedDialog: (timeoutMs) => invokeWithTimeout(IPC.OPEN_FOLDER_MERGED, [], timeoutMs),
   openFileDialog: (timeoutMs) => invokeWithTimeout(IPC.OPEN_FILE, [], timeoutMs),
+  openFileTgzDialog: (timeoutMs) => invokeWithTimeout(IPC.OPEN_FILE_TGZ, [], timeoutMs),
+  openFileZipDialog: (timeoutMs) => invokeWithTimeout(IPC.OPEN_FILE_ZIP, [], timeoutMs),
   setActiveSession: (sessionId, timeoutMs) =>
     invokeWithTimeout(IPC.SET_ACTIVE_SESSION, [sessionId], timeoutMs),
   saveSessions: (sessionsData, timeoutMs) =>
@@ -54,6 +57,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     invokeWithTimeout(IPC.SESSIONS_DELETE_DIR, [sessionId], timeoutMs),
   ingestRawTelemetry: (rawText, sessionId, timeoutMs) =>
     invokeWithTimeout(IPC.INGEST_RAW_TELEMETRY, [{ rawText, sessionId }], timeoutMs),
+  ingestMergedFolder: (folderPath, sessionId, timeoutMs) =>
+    invokeWithTimeout(IPC.INGEST_MERGED_FOLDER, [{ folderPath, sessionId }], timeoutMs),
   dedupeLogFiles: (componentIds, timeoutMs) =>
     invokeWithTimeout(IPC.DEDUPE_LOG_FILES, [componentIds], timeoutMs),
   restoreLogFiles: (componentIds, timeoutMs) =>

@@ -1,12 +1,19 @@
-import { ClipboardPaste, FolderOpen, UploadCloud } from 'lucide-react';
+import { Archive, ClipboardPaste, FileArchive, FolderOpen, FolderTree, UploadCloud } from 'lucide-react';
 import { useState } from 'react';
 
 /**
  * Landing drop zone to start a new ingest operation.
  *
- * @param {{onSelectFolder:()=>void,onSelectFiles:()=>void,onDropPaths:(paths:string[])=>void,onPasteRawTelemetry?:()=>void}} props
+ * @param {Object} props
  */
-export default function DropZone({ onSelectFolder, onSelectFiles, onDropPaths, onPasteRawTelemetry }) {
+export default function DropZone({
+  onSelectTgzFiles,
+  onSelectZipFiles,
+  onSelectTgzFolder,
+  onSelectMergedFolder,
+  onDropPaths,
+  onPasteRawTelemetry,
+}) {
   const [dragging, setDragging] = useState(false);
 
   return (
@@ -47,23 +54,42 @@ export default function DropZone({ onSelectFolder, onSelectFiles, onDropPaths, o
           Drag and drop <code>.tgz</code> archives, a <code>.zip</code> bundle of <code>.tgz</code> files, or choose a folder to merge logs chronologically.
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        <div className="mx-auto grid max-w-lg grid-cols-2 gap-3">
           <button
-            aria-label="Select folder"
-            className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 py-2 text-white"
-            onClick={onSelectFolder}
+            aria-label="Select .tgz files"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 py-2.5 text-sm text-white"
+            onClick={onSelectTgzFiles}
+            type="button"
+          >
+            <FileArchive size={16} />
+            Select .tgz Files
+          </button>
+          <button
+            aria-label="Select .zip files"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 py-2.5 text-sm text-white"
+            onClick={onSelectZipFiles}
+            type="button"
+          >
+            <Archive size={16} />
+            Select .zip Files
+          </button>
+          <button
+            aria-label="Select folder with .tgz archives"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--border)] px-4 py-2.5 text-sm hover:bg-[color:var(--bg-hover)]"
+            onClick={onSelectTgzFolder}
             type="button"
           >
             <FolderOpen size={16} />
-            Select Folder
+            Folder (.tgz)
           </button>
           <button
-            aria-label="Select files"
-            className="rounded-xl border border-[color:var(--border)] px-4 py-2 hover:bg-[color:var(--bg-hover)]"
-            onClick={onSelectFiles}
+            aria-label="Select folder with merged or expanded logs"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--border)] px-4 py-2.5 text-sm hover:bg-[color:var(--bg-hover)]"
+            onClick={onSelectMergedFolder}
             type="button"
           >
-            Select Files
+            <FolderTree size={16} />
+            Folder (Merged Logs)
           </button>
         </div>
 

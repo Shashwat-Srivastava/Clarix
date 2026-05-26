@@ -13,7 +13,10 @@ export const IPC = {
   EXPORT_JSON: 'export-json',
   EXPORT_MERGED_LOGS: 'export-merged-logs',
   OPEN_FOLDER: 'open-folder-dialog',
+  OPEN_FOLDER_MERGED: 'open-folder-merged-dialog',
   OPEN_FILE: 'open-file-dialog',
+  OPEN_FILE_TGZ: 'open-file-tgz-dialog',
+  OPEN_FILE_ZIP: 'open-file-zip-dialog',
   SET_ACTIVE_SESSION: 'session:set-active',
   SESSIONS_SAVE: 'sessions:save',
   SESSIONS_LOAD: 'sessions:load',
@@ -22,4 +25,5 @@ export const IPC = {
   DEDUPE_LOG_FILES: 'dedupe-log-files',
   RESTORE_LOG_FILES: 'restore-log-files',
   INGEST_RAW_TELEMETRY: 'ingest-raw-telemetry',
+  INGEST_MERGED_FOLDER: 'ingest-merged-folder',
 };
